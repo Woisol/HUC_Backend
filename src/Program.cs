@@ -64,13 +64,26 @@ namespace MySqlTestSpace
 		internal ProcessLog curPcs = new ProcessLog();
 		internal static MySqlConnection sqlCon = new MySqlConnection("server=localhost;user=root;database=HUC_AppUsageLog_Test;port=3306;password=60017089");
 		internal static MySqlCommand sqlCmd = new MySqlCommand();
+		internal static MySqlDataReader? sqlReader = null;
 		internal static void mainLoop()
 		{
 			//~~ List<ProcessLog> processLogList = new List<ProcessLog>();
 			sqlCon.Open();//！别忘艹…………而且不能多次调用不然出错
 			sqlCmd.Connection = sqlCon;
+			// List<ProcessControl> pcsMntList = new List<ProcessControl> { new ProcessControl("Code"), new ProcessControl("flomo") };
 			//!不应该用List而是直接导入DB，不然运行久了卡死你。
-			ProcessControl[] pcsMntList = { new ProcessControl("Code"), new ProcessControl("flomo") };//!所以这个依然是应用名不过不要exe而已
+			sqlCmd.CommandText = "SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = 'HUC_AppUsageLog_Test';";
+			sqlReader = sqlCmd.ExecuteReader();
+			List<ProcessControl> pcsMntList = new List<ProcessControl>();//~~~ = { new ProcessControl("Code"), new ProcessControl("flomo") };//!所以这个依然是应用名不过不要exe而已
+			while(sqlReader.Read())
+			{
+				pcsMntList.Add(new ProcessControl(sqlReader.GetString(0)));
+			}
+			//!由于不能反复设置cmd的原因这里必须要重置一次…………
+			// sqlCmd.CommandText = null;并不行
+			sqlCon.Close();sqlCon.Open();//！关键句…………不理解艹…………
+			sqlCmd = new MySqlCommand();
+			sqlCmd.Connection = sqlCon;
 
 			for(; ; Thread.Sleep(100))//
 			foreach(ProcessControl pcsCon in pcsMntList)
