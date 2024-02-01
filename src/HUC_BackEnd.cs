@@ -15,7 +15,7 @@ namespace MySqlTestSpace
 		//**----------------------------aka ConsoleControl-----------------------------------------------------
 		{
 			Console.WriteLine("ConsoleControl Started, type your command below:");
-			(ProcessControl.threadMonitor = new Thread(ProcessControl.mainLoop_Monitor)).Start();//！用新线程的方法！注意没有()
+			(ProcessControl.threadMonitor = new Thread(ProcessControl.thread_Monitor)).Start();//！用新线程的方法！注意没有()
 			//~~ threadMonitor.Start();
 			Console.WriteLine("Monitor running...");
 			while(true)
@@ -35,7 +35,11 @@ namespace MySqlTestSpace
 					Console.WriteLine(@"1.monitor on/off: set monitor on/off
 2.show apps: show apps monitored
 3.show blist: show blacklist
-4.show [app name]: show [app name] runtime");
+4.show {app name}: show app runtime
+5.add {app name}: add app to monitor
+6.drop {app name}: stop monitoring app but keep its data
+7.delete {app name}: delete app and its data
+8.reboot: reboot monitor");
 				}
 				else if(input.ToLower() == "monitor on")
 				{
@@ -46,6 +50,12 @@ namespace MySqlTestSpace
 				{
 					Console.WriteLine("Closing Monitor");
 					ProcessControl.setMonitorStauts(false);
+				}
+				else if(input.ToLower() == "reboot")
+				{
+					Console.WriteLine("Rebooting...");
+					ProcessControl.setMonitorStauts(false);
+					ProcessControl.setMonitorStauts(true);
 				}
 				else if(new Regex(@"(?<=show )\w+", RegexOptions.IgnoreCase).IsMatch(input))
 				{
@@ -74,6 +84,21 @@ namespace MySqlTestSpace
 				{
 					ProcessControl.dropAppMonitored(new Regex(@"(?<=drop )\w+", RegexOptions.IgnoreCase).Match(input).Value);
 				}
+				else if(new Regex(@"(?<=delete )\w+", RegexOptions.IgnoreCase).IsMatch(input))
+				{
+					var pcsName = new Regex(@"(?<=delete )\w+", RegexOptions.IgnoreCase).Match(input).Value;
+					var existApp = false;
+					ProcessControl.pcsMntList.ForEach(p => {if(p.pcsName == pcsName)existApp = true;});
+					// if(!ProcessControl.pcsMntList.Contains(pcsName))Console.WriteLine("App not found");
+					if(!existApp){Console.WriteLine("App not found");continue; }
+					Console.WriteLine($"Are you sure to permanently delete the app {pcsName} and its data? (y/n)");
+					var i = Console.ReadLine();
+					if (i.ToLower() == "y")
+					{
+						ProcessControl.deleteAppMonitored(pcsName);
+					}
+				}
+
 				else{ Console.WriteLine("Unknown command"); }
 				// switch(input)还是不用switch了……效率估计不行
 			}
@@ -93,11 +118,13 @@ namespace MySqlTestSpace
 	}
 	class ProcessControl
 	{
+		//td鉴于要搞成dll，改一下修饰符…………
 		internal ProcessControl(string pcsName)
 		{
 			this.pcsName = pcsName;
 		}
 
+		internal static string ProcessListFileDir = @"Res\pcsMntBlackList.plf";
 		internal static string DATABASE_NAME = "HUC_AppUsageLog_Test";
 		public static bool isMonitor { get; set; } = true;
 		internal string pcsName = "";
@@ -108,10 +135,11 @@ namespace MySqlTestSpace
 		internal static MySqlConnection sqlCon = new MySqlConnection($"server=localhost;user=root;database={DATABASE_NAME};port=3306;password=60017089");
 		// internal static MySqlCommand sqlCmd = new MySqlCommand();
 		internal static MySqlDataReader? sqlReader = null;
-		internal static Thread threadMonitor = new Thread(ProcessControl.mainLoop_Monitor);
-		internal static void mainLoop_Monitor()//!async X！注意这不是个标志，是在不能阻塞的方法里用，在里面用await来实现异步？
+		internal static Thread threadMonitor = new Thread(ProcessControl.thread_Monitor);
+		internal static void thread_Monitor()//!async X！注意这不是个标志，是在不能阻塞的方法里用，在里面用await来实现异步？
 		{
 			//~~ List<ProcessLog> processLogList = new List<ProcessLog>();
+			pcsMntBlackList = File.ReadAllLines(ProcessListFileDir).ToList<string>();//！芜湖
 			// if (sqlCon.State == ConnectionState.Open)
 			// 	sqlCon.Close();
 			sqlCon.Open();//！别忘艹…………而且不能多次调用不然出错
@@ -126,7 +154,7 @@ namespace MySqlTestSpace
 			{
 				var curPcsName = sqlReader.GetString(0);
 				var isAdd = true;
-				if (pcsMntBlackList.Contains(curPcsName)) break;
+				if (pcsMntBlackList.Contains(curPcsName)) continue;
 				foreach(var curPcs in pcsMntList)
 				{
 					if (curPcs.pcsName.ToLower() == curPcsName.ToLower()) isAdd = false;
@@ -153,7 +181,7 @@ namespace MySqlTestSpace
 			if(isMonitor)
 			{
 				ProcessControl.isMonitor = true;
-				(threadMonitor = new Thread(ProcessControl.mainLoop_Monitor)).Start();////!艹不能重启啊…………那我搞变量有什么用…………
+				(threadMonitor = new Thread(ProcessControl.thread_Monitor)).Start();//!艹不能重启啊…………那我搞变量有什么用…………
 			}
 			else
 			{
@@ -173,7 +201,7 @@ namespace MySqlTestSpace
 				MySqlDataReader sqlReader =  new MySqlCommand($"SELECT * FROM {pcsName} ORDER BY StartTime DESC LIMIT 1;",sqlCon).ExecuteReader();
 				sqlReader.Read();//！当前上下文中不存在名称“sqlReader”看来try里面是一个密闭空间…………
 				//td输出
-				Console.WriteLine($"{pcsName} current runtime: {sqlReader.GetDateTime("StartTime")} - {sqlReader.GetDateTime("EndTime")} for {sqlReader.GetDecimal("LastTime")}min");
+				Console.WriteLine($"{pcsName} last runtime: {sqlReader.GetDateTime("StartTime")} - {sqlReader.GetDateTime("EndTime")} for {sqlReader.GetDecimal("LastTime")}min");
 			}
 			catch(Exception e)
 			{
@@ -183,11 +211,11 @@ namespace MySqlTestSpace
 			}
 			//！sqlReader["StartTime"]和sqlReader.GetString("EndTime")的区别在于前者不知道返回类型返回的是object
 			sqlCon.Close();
-
+			sqlCon.Open();
 		}
 		internal static void showAppMonitored()
-			{
-					if(pcsMntList.Count == 0)
+		{
+			if(pcsMntList.Count == 0)
 			{
 				//td输出
 				Console.WriteLine("No app monitored!");
@@ -217,6 +245,7 @@ namespace MySqlTestSpace
 			//！wokforeach的行内写法！！！可惜if用不了
 			if (pcsMntBlackList.Contains(pcsName))
 			pcsMntBlackList.Remove(pcsName);
+			File.WriteAllLinesAsync(ProcessListFileDir, pcsMntBlackList.ToArray<string>());//！好耶！[]和数组的相互转化！
 			foreach(ProcessControl pcsCon in pcsMntList)
 			{
 				if(pcsCon.pcsName == pcsName)
@@ -230,13 +259,19 @@ namespace MySqlTestSpace
 			new MySqlCommand($"INSERT INTO {pcsName} VALUES ('{DateTime.Now}', '{DateTime.Now}', 0);", sqlCon).ExecuteNonQueryAsync();
 			//!可以多次cmd…………
 			//！不能在foreach的时候改变List，所以只能重启进程了………………
+			// threadReboot();
 			setMonitorStauts(false);
 			Console.WriteLine("Rebooting...");
 			pcsMntList.Add(new ProcessControl(pcsName));
 			setMonitorStauts(true);
+
 		}
 		internal static void dropAppMonitored(string pcsName)
 		{
+			if (pcsMntBlackList.Contains(pcsName)) {Console.WriteLine("App already dropped!");}//td输出
+			else pcsMntBlackList.Add(pcsName);
+			setMonitorStauts(false);
+			var existApp = false;
 			foreach(ProcessControl pcsCon in pcsMntList)
 			{
 				if(pcsCon.pcsName == pcsName)
@@ -244,12 +279,28 @@ namespace MySqlTestSpace
 					pcsMntList.Remove(pcsCon);
 					//td输出
 					Console.WriteLine("App dropped!");
+					existApp = true;
 					break;
 				}
 			}
-			if (pcsMntBlackList.Contains(pcsName)) {Console.WriteLine("App already dropped!");}//td输出
-			else pcsMntBlackList.Add(pcsName);
+			if (existApp) File.WriteAllLinesAsync(ProcessListFileDir, pcsMntBlackList.ToArray<string>());
+			else Console.WriteLine("App not found!");
+			setMonitorStauts(true);
 		}
+		public static void deleteAppMonitored(string pcsName)
+		{
+			var originStr = File.ReadAllLines(ProcessListFileDir);
+			List<string> resStrList = new List<string>();
+			foreach(var curStr in originStr)
+			if(curStr != pcsName)resStrList.Add(curStr);
+			File.WriteAllLines(ProcessListFileDir,resStrList.ToArray<string>());
+
+			new MySqlCommand($"DROP TABLE IF EXISTS {pcsName};", sqlCon).ExecuteNonQueryAsync();
+			Console.WriteLine($"App {pcsName} and its data has been deleted!");
+		}
+		// internal static void threadReboot()
+		// {
+		// }
 		void getPcsStatus()
 		//**理清思路
 		//未启动：null, null, false				where Lengh = 0
