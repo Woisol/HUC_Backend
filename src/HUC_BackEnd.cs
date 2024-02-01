@@ -3,6 +3,7 @@ using System.Data;
 using System.Data.SqlTypes;
 using System.Diagnostics;
 using System.Formats.Asn1;
+using System.Text.RegularExpressions;
 using MySqlConnector;//！这句开始无法识别要在命令行：dotnet add package MySqlConnector
 
 namespace MySqlTestSpace
@@ -10,34 +11,62 @@ namespace MySqlTestSpace
 	class Program
 	{
 		static void Main()
+		//**----------------------------aka ConsoleControl-----------------------------------------------------
 		{
-			ProcessControl.mainLoop();//静态方法不能用实例访问…………
-			// try
-			// {
-			// 	Console.WriteLine("Connecting to MySQL..");
-			// 	sqlCon.Open();
-			// 	MySqlCommand sqlCmd = new MySqlCommand();
-			// 	//~~这个不太能放到外面因为要构造
-			// 	sqlCmd.Connection = sqlCon;
-			// 	sqlCmd.CommandText = "SELECT Name, HeadOfState FROM Country WHERE Continent='Oceania'";
-			// 	// sqlCmd.CommandText = "SELECT * FROM city WHERE ID = 1";
-			// 	MySqlDataReader sqlReader = sqlCmd.ExecuteReader();
+			Console.WriteLine("ConsoleControl Started, type your command below:");
+			new Thread(ProcessControl.mainLoop_Monitor).Start();//！用新线程的方法！注意没有()
+			//~~ threadMonitor.Start();
+			Console.WriteLine("Monitor running...");
+			while(true)
+			{
+				// Thread.Sleep(20);//!要不然初始的存在信息就覆盖在>后面了
+				// Console.Write(">");
+				var input = Console.ReadLine();
+				if (input == "exit")
+				{
+					//td输出，以及下面
+					Console.WriteLine("Exiting...");
+					ProcessControl.isMonitor = false;
+					break;
+				}
+				else if(input.ToLower() == "monitor on")
+				{
+					Console.WriteLine("Opening Monitor");
+					ProcessControl.isMonitor = true;
+					new Thread(ProcessControl.mainLoop_Monitor).Start();////!艹不能重启啊…………那我搞变量有什么用…………
+				}
+				else if(input.ToLower() == "monitor off")
+				{
+					Console.WriteLine("Closing Monitor");
+					ProcessControl.isMonitor = false;
+				}
+				else if(new Regex(@"(?<=show )\w+").IsMatch(input))
+				{
+					var res = new Regex(@"(?<=show )\w+", RegexOptions.IgnoreCase).Match(input).Value;
+					//！忽略大小写的方法！
+					MySqlConnection sqlCon = new MySqlConnection($"Server=localhost;user=root;Database={ProcessControl.DATABASE_NAME};port=3306;password=60017089;");
+					sqlCon.Open();
+					try
+					{
+						MySqlDataReader sqlReader =  new MySqlCommand($"SELECT * FROM {res} ORDER BY StartTime DESC LIMIT 1;",sqlCon).ExecuteReader();
+						sqlReader.Read();//！当前上下文中不存在名称“sqlReader”看来try里面是一个密闭空间…………
+						//td输出
+						Console.WriteLine($"{res} current runtime: {sqlReader.GetDateTime("StartTime")} - {sqlReader.GetDateTime("EndTime")} for {sqlReader.GetDecimal("LastTime")}min");
+					}
+					catch(Exception e)
+					{
+						//td输出异常
+						Console.WriteLine(e.Message);
+						continue;
+					}
+					//！sqlReader["StartTime"]和sqlReader.GetString("EndTime")的区别在于前者不知道返回类型返回的是object
+					sqlCon.Close();
+				}
+				else{ Console.WriteLine("Unknown command"); }
+				// switch(input)还是不用switch了……效率估计不行
+			}
 
-			// 	while(sqlReader.Read())
-			// 	{
-			// 		Console.WriteLine($"{sqlReader[0]} -- {sqlReader[1]}");
-			// 	}
-			// }
-			// catch(Exception ex)
-			// {
-			// 	Console.WriteLine(ex.ToString());
-			// }
-
-			// sqlCon.Close();
-			// Console.WriteLine("Done");
-
-			// List<ProcessLog> ProcessList = new List<ProcessLog>();
-			// try { var process = Process.GetProcessesByName("code.exe")[0]; }
+			// ProcessControl.mainLoop_Monitor();//静态方法不能用实例访问…………
 			// //！如果不使用异常try只能用getProcess检测所有进程是否包含code.exe…………
 			// catch { }
 			// ProcessList.Add(Process.GetProcessesByName("code.exe")[0]);//！注意这里如果找不到会报错IndexOutOfRange
@@ -59,14 +88,15 @@ namespace MySqlTestSpace
 			this.pcsName = pcsName;
 		}
 
-		static string DATABASE_NAME = "HUC_AppUsageLog_Test";
+		internal static string DATABASE_NAME = "HUC_AppUsageLog_Test";
+		public static bool isMonitor { get; set; } = true;
 		internal string pcsName = "";
 
 		internal ProcessLog curPcs = new ProcessLog();
-		internal static MySqlConnection sqlCon = new MySqlConnection("server=localhost;user=root;database=HUC_AppUsageLog_Test;port=3306;password=60017089");
+		internal static MySqlConnection sqlCon = new MySqlConnection($"server=localhost;user=root;database={DATABASE_NAME};port=3306;password=60017089");
 		// internal static MySqlCommand sqlCmd = new MySqlCommand();
 		internal static MySqlDataReader? sqlReader = null;
-		internal static void mainLoop()
+		internal static void mainLoop_Monitor()//!async X！注意这不是个标志，是在不能阻塞的方法里用，在里面用await来实现异步？
 		{
 			//~~ List<ProcessLog> processLogList = new List<ProcessLog>();
 			sqlCon.Open();//！别忘艹…………而且不能多次调用不然出错
@@ -88,7 +118,7 @@ namespace MySqlTestSpace
 			// sqlCmd = new MySqlCommand();
 			// sqlCmd.Connection = sqlCon;
 
-			for(; ; Thread.Sleep(100))//
+			for(;isMonitor ; Thread.Sleep(100))//
 			foreach(ProcessControl pcsCon in pcsMntList)
 			{
 				pcsCon.getPcsStatus();
@@ -98,13 +128,13 @@ namespace MySqlTestSpace
 			//td考虑电脑睡眠后的处理
 			sqlCon.Close();//!!暂时无法访问
 		}
+		//~~ internal static void showPcsRunTime(string pcsName)
 		void getPcsStatus()
 		//**理清思路
 		//未启动：null, null, false				where Lengh = 0
 		//启动：[startTime], null, [true]		where Judge
 		//运行中：同
 		//结束：startTime, [endTime], [false]	where Judge 写入and创建新的
-
 		{
 			// ProcessLog curPcs = new ProcessLog();//!开始忘记new了导致前后影响——但是同一个应用的不能丢失啊艹…………
 			var tmpPcsList = Process.GetProcessesByName(pcsName);
@@ -154,7 +184,7 @@ namespace MySqlTestSpace
 							this.curPcs.endTime = DateTime.Now.ToLocalTime();
 						}
 						new MySqlCommand($"UPDATE {pcsName} SET EndTime = '{this.curPcs.endTime}', LastTime = {((DateTime)this.curPcs.endTime - (DateTime)this.curPcs.startTime).TotalMinutes} WHERE StartTime = '{this.curPcs.startTime}';", sqlCon).ExecuteNonQueryAsync();
-						Console.WriteLine($"{pcsName} last exited in less then 5min: {this.curPcs.startTime} ~ {this.curPcs.endTime}");
+						Console.WriteLine($"{pcsName} reboot in less then 5min: {this.curPcs.startTime} ~ {this.curPcs.endTime}");
 					}
 					else
 					{
