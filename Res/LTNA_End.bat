@@ -1,0 +1,1 @@
+taskkill /IM LongTimeNoaction.exe /F

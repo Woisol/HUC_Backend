@@ -33,9 +33,9 @@ namespace MySqlTestSpace
 				new MySqlCommand($"CREATE TABLE longtimenoaction (StartTime DateTime, EndTime DateTime, LastTime Decimal);",conn).ExecuteNonQuery();
 				new MySqlCommand($"INSERT INTO longtimenoaction VALUES ('{DateTime.Now.ToLocalTime()}', '{DateTime.Now.ToLocalTime()}', 0);", conn).ExecuteNonQuery();
 				conn.Close();
+				ProcessControl.sqlCon = new MySqlConnection($"server=localhost;user=root;database={ProcessControl.DATABASE_NAME};port=3306;password=60017089");
 			}
 
-			Console.WriteLine("Monitor running...");
 			(ProcessControl.threadMonitor = new Thread(ProcessControl.thread_Monitor)).Start();//！用新线程的方法！注意没有()
 			Console.WriteLine("ConsoleControl Started, type your command below:");
 																							   //~~ threadMonitor.Start();
@@ -68,12 +68,10 @@ namespace MySqlTestSpace
 				}
 				else if (input.ToLower() == "monitor on")
 				{
-					Console.WriteLine("Opening Monitor");
 					ProcessControl.setMonitorStauts(true);
 				}
 				else if (input.ToLower() == "monitor off")
 				{
-					Console.WriteLine("Closing Monitor");
 					ProcessControl.setMonitorStauts(false);
 				}
 				else if (input.ToLower() == "reboot")
@@ -150,7 +148,10 @@ namespace MySqlTestSpace
 		}
 
 		internal static string ProcessListFileDir = @"pcsMntBlackList.plf";
+		internal static string runtimeLogFileDir = @"runtimeLog.rlf";
 		internal static string DATABASE_NAME = "HUC_AppUsageLog";
+		internal static FileStream rlfStream = new FileStream(runtimeLogFileDir,FileMode.Append);
+		internal static StreamWriter runtimeLogStreamWriter = new StreamWriter(rlfStream);
 		public static bool isMonitor { get; set; } = true;
 		internal string pcsName = "";
 
@@ -158,13 +159,18 @@ namespace MySqlTestSpace
 		internal ProcessLog pcs = new ProcessLog();
 		internal static List<ProcessControl> pcsMntList = new List<ProcessControl>();//~~~ = { new ProcessControl("Code"), new ProcessControl("flomo") };//!所以这个依然是应用名不过不要exe而已
 		internal static List<string> pcsMntBlackList = new List<string>();
-		internal static MySqlConnection sqlCon = null;
+		internal static MySqlConnection? sqlCon = null;
 		// internal static MySqlCommand sqlCmd = new MySqlCommand();
-		internal static MySqlDataReader sqlReader = null;
+		internal static MySqlDataReader? sqlReader = null;
 		internal static Thread threadMonitor = new Thread(thread_Monitor);
 		internal static void thread_Monitor()//!async X！注意这不是个标志，是在不能阻塞的方法里用，在里面用await来实现异步？
 		{
 			//~~ List<ProcessLog> processLogList = new List<ProcessLog>();
+			runtimeLogStreamWriter.AutoFlush = true;
+			//！有这个！！否则不关闭不会显示！！！
+			Console.WriteLine("Monitor Running");
+			if (!File.Exists(ProcessListFileDir))
+            	File.Create(ProcessListFileDir).Close(); //!创建并关闭文件流
 			pcsMntBlackList = File.ReadAllLines(ProcessListFileDir).ToList<string>();//！芜湖
 																					 // if (sqlCon.State == ConnectionState.Open)
 																					 // 	sqlCon.Close();
@@ -193,11 +199,12 @@ namespace MySqlTestSpace
 			//!由于不能反复设置cmd的原因这里必须要重置一次…………
 			// sqlCmd.CommandText = null;并不行
 			sqlCon.Close(); sqlCon.Open();//！关键句…………不理解艹…………
-			for (; isMonitor; Thread.Sleep(100))//
+			runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Monitor Start");
+			for (; isMonitor; Thread.Sleep(10000))//
 			{
 				if(Process.GetProcessesByName("LongTimeNoAction").Length > 0)
 				{
-                    Console.WriteLine($"Suspend: {DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")}!");
+                    runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Suspend");
 					foreach(ProcessControl pcsCon in pcsMntList)
 					{
 						if (pcsCon.pcs.isRunning == false) continue;
@@ -205,7 +212,7 @@ namespace MySqlTestSpace
 						pcsCon.pcs.endTime = DateTime.Now.ToLocalTime();
 						if (pcsCon.pcs.startTime == null || pcsCon.pcs.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
 						new MySqlCommand("UPDATE {pcsName} SET EndTime = '{pcsCon.curPcs.endTime}', LastTime = {((DateTime)pcsCon.curPcs.endTime - (DateTime)pcsCon.curPcs.startTime).TotalMinutes} WHERE StartTime = '{pcsCon.curPcs.startTime}'", sqlCon).ExecuteNonQueryAsync();
-						Console.WriteLine($"{pcsCon.pcsName} end: {pcsCon.pcs.startTime} ~ {pcsCon.pcs.endTime}");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+						runtimeLogStreamWriter.WriteLine($"{pcsCon.pcs.startTime} ~ {pcsCon.pcs.endTime}: INFO {pcsCon.pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 					}
 					new Thread(thread_WaitForReboot).Start();
                     break;
@@ -219,17 +226,18 @@ namespace MySqlTestSpace
 			//!先阻塞吧感觉好像也行
 			//td考虑电脑睡眠后的处理
 			sqlCon.Close();
+				runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Monitor Stop");
 		}
 		internal static void thread_WaitForReboot()
 		{
 			while(true)
 			{
-				Thread.Sleep(1000);
+				Thread.Sleep(10000);
 				if(Process.GetProcessesByName("LongTimeNoAction").Length == 0)
 				{
 					isMonitor = true;
 					(threadMonitor = new Thread(thread_Monitor)).Start();//!艹不能重启啊…………那我搞变量有什么用…………
-					Console.WriteLine($"Reboot Successfully: {DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")}!");
+					runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Reboot Successfully");
 					break;
 				}
 			}
@@ -238,8 +246,10 @@ namespace MySqlTestSpace
 		{
 			if (isMonitor)
 			{
+				if(ProcessControl.isMonitor){ Console.WriteLine("Monitor is already Opened!"); return; }
 				ProcessControl.isMonitor = true;
 				(threadMonitor = new Thread(thread_Monitor)).Start();//!艹不能重启啊…………那我搞变量有什么用…………
+				Console.WriteLine("Monitor Opened!");
 			}
 			else
 			{
@@ -248,6 +258,7 @@ namespace MySqlTestSpace
 				// if (threadMonitor != null && threadMonitor.IsAlive)
 				threadMonitor.Join(); //！重要方法！！！ 等待结束否则connection没有close就打开无法加载新的command！
 									  //！后面出现了重复检测的问题，开始一直以为是线程没关掉但是已经关了，在于List的Add加多了！！！！！！！！！！！！！
+				Console.WriteLine("Monitor Closed!");
 			}
 		}
 		internal static void showPcsRunTime(string pcsName)
@@ -303,6 +314,7 @@ namespace MySqlTestSpace
 			//！wokforeach的行内写法！！！可f惜if用不了
 			if (pcsMntBlackList.Contains(pcsName))
 				pcsMntBlackList.Remove(pcsName);
+			Console.WriteLine("Monitor Running");
 			File.WriteAllLinesAsync(ProcessListFileDir, pcsMntBlackList.ToArray<string>());//！好耶！[]和数组的相互转化！
 			foreach (ProcessControl pcsCon in pcsMntList)
 			{
@@ -320,6 +332,7 @@ namespace MySqlTestSpace
 			// threadReboot();
 			setMonitorStauts(false);
 			Console.WriteLine("Rebooting...");
+			runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Monitor Reboot");
 			pcsMntList.Add(new ProcessControl(pcsName));
 			setMonitorStauts(true);
 
@@ -387,7 +400,7 @@ namespace MySqlTestSpace
 																																																																	   //not错误写法，可能导致注入！！！https://zhuanlan.zhihu.com/p/28401873 是喔用了这样的写法也不会担心哈哈
 																																																																	   //!不对注意例子中是WHERE NAME = ...的…………这样依然会导致注入
 
-					Console.WriteLine($"{pcsName} end: {this.pcs.startTime} ~ {this.pcs.endTime}");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+					runtimeLogStreamWriter.WriteLine($"{this.pcs.startTime} ~ {this.pcs.endTime}: INFO {pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 				}
 			}
 			else
@@ -414,7 +427,7 @@ namespace MySqlTestSpace
 							this.pcs.endTime = DateTime.Now.ToLocalTime();
 						}
 						new MySqlCommand($"UPDATE {pcsName} SET EndTime = '{this.pcs.endTime}', LastTime = {((DateTime)this.pcs.endTime - (DateTime)this.pcs.startTime).TotalMinutes} WHERE StartTime = '{this.pcs.startTime}';", sqlCon).ExecuteNonQueryAsync();
-						Console.WriteLine($"{pcsName} reboot in less then 5min: {this.pcs.startTime} ~ {this.pcs.endTime}");
+						runtimeLogStreamWriter.WriteLine($"{this.pcs.startTime} ~ {this.pcs.endTime}: INFO {pcsName} Reboot in less then 5min");
 					}
 					else
 					{
@@ -424,7 +437,7 @@ namespace MySqlTestSpace
 						//~~ sqlCmd.CommandText = $"INSERT INTO {pcsName} VALUES ('{this.curPcs.startTime}', '{this.curPcs.startTime}', 0);";
 						new MySqlCommand($"INSERT INTO {pcsName} VALUES ('{this.pcs.startTime}', '{this.pcs.startTime}', 0);", sqlCon).ExecuteNonQueryAsync();
 						//INSERT INTO AltDrag VALUES ('2024-01-01 00:00:00', '2024-01-01 00:00:00', 0);
-						Console.WriteLine($"{pcsName} start at {this.pcs.startTime}");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+						runtimeLogStreamWriter.WriteLine($"{this.pcs.startTime}: STAT {pcsName} Start");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 					}
 				}
 				//!要考虑到如果长时间运行数据完全不更新…………

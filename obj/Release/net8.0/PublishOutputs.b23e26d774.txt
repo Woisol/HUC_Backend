@@ -1,0 +1,7 @@
+D:\Code\C#\MySQL Test\bin\Release\net8.0\publish\MySQL Test.exe
+D:\Code\C#\MySQL Test\bin\Release\net8.0\publish\MySQL Test.dll
+D:\Code\C#\MySQL Test\bin\Release\net8.0\publish\MySQL Test.deps.json
+D:\Code\C#\MySQL Test\bin\Release\net8.0\publish\MySQL Test.runtimeconfig.json
+D:\Code\C#\MySQL Test\bin\Release\net8.0\publish\MySQL Test.pdb
+D:\Code\C#\MySQL Test\bin\Release\net8.0\publish\Microsoft.Extensions.Logging.Abstractions.dll
+D:\Code\C#\MySQL Test\bin\Release\net8.0\publish\MySqlConnector.dll
