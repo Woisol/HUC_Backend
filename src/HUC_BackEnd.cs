@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Data;
 using System.Data.SqlTypes;
 using System.Diagnostics;
@@ -35,6 +36,11 @@ namespace MySqlTestSpace
 				conn.Close();
 				ProcessControl.sqlCon = new MySqlConnection($"server=localhost;user=root;database={ProcessControl.DATABASE_NAME};port=3306;password=60017089");
 			}
+
+			Process titleChangePcs = new Process();
+			titleChangePcs.StartInfo.FileName = "cmd.exe";
+			titleChangePcs.StartInfo.Arguments = "/c title HUC";
+			titleChangePcs.Start();
 
 			(ProcessControl.threadMonitor = new Thread(ProcessControl.thread_Monitor)).Start();//！用新线程的方法！注意没有()
 			Console.WriteLine("ConsoleControl Started, type your command below:");
@@ -79,6 +85,14 @@ namespace MySqlTestSpace
 					Console.WriteLine("Rebooting...");
 					ProcessControl.setMonitorStauts(false);
 					ProcessControl.setMonitorStauts(true);
+				}
+				else if (input.ToLower() == "log")
+				{
+					ProcessControl.showRTLog();
+				}
+				else if(input.ToLower() == "clear")
+				{
+					Console.Clear();
 				}
 				else if (new Regex(@"(?<=show )\w+", RegexOptions.IgnoreCase).IsMatch(input))
 				{
@@ -168,7 +182,6 @@ namespace MySqlTestSpace
 			//~~ List<ProcessLog> processLogList = new List<ProcessLog>();
 			runtimeLogStreamWriter.AutoFlush = true;
 			//！有这个！！否则不关闭不会显示！！！
-			Console.WriteLine("Monitor Running");
 			if (!File.Exists(ProcessListFileDir))
             	File.Create(ProcessListFileDir).Close(); //!创建并关闭文件流
 			pcsMntBlackList = File.ReadAllLines(ProcessListFileDir).ToList<string>();//！芜湖
@@ -199,6 +212,7 @@ namespace MySqlTestSpace
 			//!由于不能反复设置cmd的原因这里必须要重置一次…………
 			// sqlCmd.CommandText = null;并不行
 			sqlCon.Close(); sqlCon.Open();//！关键句…………不理解艹…………
+			Console.WriteLine("Monitor Running");
 			runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Monitor Start");
 			for (; isMonitor; Thread.Sleep(10000))//
 			{
@@ -212,7 +226,7 @@ namespace MySqlTestSpace
 						pcsCon.pcs.endTime = DateTime.Now.ToLocalTime();
 						if (pcsCon.pcs.startTime == null || pcsCon.pcs.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
 						new MySqlCommand("UPDATE {pcsName} SET EndTime = '{pcsCon.curPcs.endTime}', LastTime = {((DateTime)pcsCon.curPcs.endTime - (DateTime)pcsCon.curPcs.startTime).TotalMinutes} WHERE StartTime = '{pcsCon.curPcs.startTime}'", sqlCon).ExecuteNonQueryAsync();
-						runtimeLogStreamWriter.WriteLine($"{pcsCon.pcs.startTime} ~ {pcsCon.pcs.endTime}: INFO {pcsCon.pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+						runtimeLogStreamWriter.WriteLine($"{pcsCon.pcs.endTime}: INFO {pcsCon.pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 					}
 					new Thread(thread_WaitForReboot).Start();
                     break;
@@ -270,7 +284,7 @@ namespace MySqlTestSpace
 				MySqlDataReader sqlReader = new MySqlCommand($"SELECT * FROM {pcsName} ORDER BY StartTime DESC LIMIT 1;", sqlCon).ExecuteReader();
 				sqlReader.Read();//！当前上下文中不存在名称“sqlReader”看来try里面是一个密闭空间…………
 								 //td输出
-				Console.WriteLine($"{pcsName} last runtime: {sqlReader.GetDateTime("StartTime")} - {sqlReader.GetDateTime("EndTime")} for {sqlReader.GetDecimal("LastTime")}min");
+				Console.WriteLine($"{pcsName} last runtime: {sqlReader.GetDateTime("StartTime")} - {sqlReader.GetDateTime("EndTime")} for {sqlReader.GetDecimal("LastTime")}min\n");
 			}
 			catch (Exception e)
 			{
@@ -294,6 +308,7 @@ namespace MySqlTestSpace
 				//td输出
 				Console.WriteLine(pcsCon.pcsName);
 			}
+			Console.WriteLine();
 		}
 		internal static void showBlackList()
 		{
@@ -307,6 +322,14 @@ namespace MySqlTestSpace
 				//td输出
 				Console.WriteLine(blackName);
 			}
+			Console.WriteLine();
+		}
+		internal static void showRTLog()
+		{
+			Process notepadPcs = new Process();
+			notepadPcs.StartInfo.FileName = "notepad";
+			notepadPcs.StartInfo.Arguments = @$"""{ProcessControl.runtimeLogFileDir}"" /c";
+			notepadPcs.Start();
 		}
 		internal static void addAppMonitored(string pcsName)
 		{
@@ -400,7 +423,7 @@ namespace MySqlTestSpace
 																																																																	   //not错误写法，可能导致注入！！！https://zhuanlan.zhihu.com/p/28401873 是喔用了这样的写法也不会担心哈哈
 																																																																	   //!不对注意例子中是WHERE NAME = ...的…………这样依然会导致注入
 
-					runtimeLogStreamWriter.WriteLine($"{this.pcs.startTime} ~ {this.pcs.endTime}: INFO {pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+					runtimeLogStreamWriter.WriteLine($"{this.pcs.endTime}: INFO {pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 				}
 			}
 			else
@@ -427,7 +450,7 @@ namespace MySqlTestSpace
 							this.pcs.endTime = DateTime.Now.ToLocalTime();
 						}
 						new MySqlCommand($"UPDATE {pcsName} SET EndTime = '{this.pcs.endTime}', LastTime = {((DateTime)this.pcs.endTime - (DateTime)this.pcs.startTime).TotalMinutes} WHERE StartTime = '{this.pcs.startTime}';", sqlCon).ExecuteNonQueryAsync();
-						runtimeLogStreamWriter.WriteLine($"{this.pcs.startTime} ~ {this.pcs.endTime}: INFO {pcsName} Reboot in less then 5min");
+						runtimeLogStreamWriter.WriteLine($"{this.pcs.endTime}: INFO {pcsName} Reboot in less then 5min");
 					}
 					else
 					{
@@ -437,7 +460,7 @@ namespace MySqlTestSpace
 						//~~ sqlCmd.CommandText = $"INSERT INTO {pcsName} VALUES ('{this.curPcs.startTime}', '{this.curPcs.startTime}', 0);";
 						new MySqlCommand($"INSERT INTO {pcsName} VALUES ('{this.pcs.startTime}', '{this.pcs.startTime}', 0);", sqlCon).ExecuteNonQueryAsync();
 						//INSERT INTO AltDrag VALUES ('2024-01-01 00:00:00', '2024-01-01 00:00:00', 0);
-						runtimeLogStreamWriter.WriteLine($"{this.pcs.startTime}: STAT {pcsName} Start");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+						runtimeLogStreamWriter.WriteLine($"{this.pcs.startTime}: INFO {pcsName} Start");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 					}
 				}
 				//!要考虑到如果长时间运行数据完全不更新…………
