@@ -39,7 +39,7 @@ namespace HUC_BackEnd_Remaster
 			titleChangePcs.StartInfo.Arguments = "/c title HUC";
 			titleChangePcs.Start();
 
-			try{(ProcessLog.threadMonitor = new Thread(ProcessLog.thread_Monitor)).Start();Console.WriteLine("Monitor Start Successfully"); }
+			try{(ProcessLog.threadMonitor = new Thread(ProcessLog.thread_Monitor)).Start(); }
 			// ！注意这个并不返回bool而是抛出异常…………
 			catch{ Console.WriteLine("Monitor Start Failed"); }
 
@@ -73,7 +73,7 @@ namespace HUC_BackEnd_Remaster
 				}
 				else if (input.ToLower() == "reboot")
 				{
-					Console.WriteLine("Rebooting...");
+					Console.WriteLine("Monitor Rebooting");
 					ProcessLog.setMonitorStauts(false);
 					ProcessLog.setMonitorStauts(true);
 				}
@@ -89,12 +89,12 @@ namespace HUC_BackEnd_Remaster
 				{
 					if (input.ToLower() == "show apps")
 					{
-						Console.WriteLine("Apps Monitored:");
+						// Console.WriteLine("Apps Monitored:");
 						ProcessLog.showAppMonitored();
 					}
 					else if (input.ToLower() == "show blist")
 					{
-						Console.WriteLine("Blacklist:");
+						// Console.WriteLine("Blacklist:");
 						ProcessLog.showBlackList();
 					}
 					else if (new Regex(@"(?<=show )\w+", RegexOptions.IgnoreCase).IsMatch(input))
@@ -118,7 +118,7 @@ namespace HUC_BackEnd_Remaster
 					ProcessLog.pcsMntList.ForEach(p => { if (p.pcsName == pcsName) existApp = true; });
 					// if(!ProcessLog.pcsMntList.Contains(pcsName))Console.WriteLine("App not found");
 					if (!existApp) { Console.WriteLine("App not found"); continue; }
-					Console.WriteLine($"Are you sure to permanently delete the app {pcsName} and its data? (y/n)");
+					// Console.WriteLine($"Are you sure to permanently delete the app {pcsName} and its data? (y/n)");
 					var i = Console.ReadLine();
 					if (i.ToLower() == "y")
 					{
@@ -182,22 +182,24 @@ namespace HUC_BackEnd_Remaster
 					pcsMntList.Add(new ProcessLog(curPcsName));
 			}
 			sqlCon.Close(); sqlCon.Open();
-			Console.WriteLine("Monitor Initilized");
-			runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Monitor Initilized and Started");
+			Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}: [STAT] Monitor Started");
+			runtimeLogStreamWriter.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}: [STAT] Monitor Started");
 			//**----------------------------主监视代码-----------------------------------------------------
-			for (; isMonitor; Thread.Sleep(10000))
+			for (; isMonitor; Thread.Sleep(1000))
 			{
 				if(Process.GetProcessesByName("LongTimeNoAction").Length > 0)
 				{
-                    runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Suspend");
+                    Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}: [STAT] Monitor Suspend");
+                    runtimeLogStreamWriter.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}: [STAT] Monitor Suspend");
 					foreach(ProcessLog pcsCon in pcsMntList)
 					{
 						if (pcsCon.isRunning == false) continue;
 						pcsCon.isRunning = false;
 						pcsCon.endTime = DateTime.Now.ToLocalTime();
 						if (pcsCon.startTime == null || pcsCon.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
-						new MySqlCommand("UPDATE {pcsName} SET EndTime = '{pcsCon.curPcs.endTime}', LastTime = {((DateTime)pcsCon.curPcs.endTime - (DateTime)pcsCon.curPcs.startTime).TotalMinutes} WHERE StartTime = '{pcsCon.curPcs.startTime}'", sqlCon).ExecuteNonQueryAsync();
-						runtimeLogStreamWriter.WriteLine($"{pcsCon.endTime}: INFO {pcsCon.pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+						new MySqlCommand("UPDATE {pcsName} SET EndTime = '{pcsCon.endTime}', LastTime = {((DateTime)pcsCon.endTime - (DateTime)pcsCon.startTime).TotalMinutes} WHERE StartTime = '{pcsCon.startTime}'", sqlCon).ExecuteNonQueryAsync();
+						Console.WriteLine($"{pcsCon.endTime}: [INFO] AppEnd {pcsCon.pcsName}");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+						runtimeLogStreamWriter.WriteLine($"{pcsCon.endTime}: [INFO] AppEnd {pcsCon.pcsName}");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 					}
 					new Thread(thread_WaitForReboot).Start();
                     break;
@@ -208,9 +210,10 @@ namespace HUC_BackEnd_Remaster
 					pcsCon.getPcsStatus();
 				}
 			}
-			//td考虑电脑睡眠后的处理
+			//dtd考虑电脑睡眠后的处理
 			sqlCon.Close();
-				runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Monitor Stop");
+				Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}: [STAT] Monitor Stop");
+				runtimeLogStreamWriter.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}: [STAT] Monitor Stop");
 		}
 		//**----------------------------重启代码-----------------------------------------------------
 		internal static void thread_WaitForReboot()
@@ -222,7 +225,8 @@ namespace HUC_BackEnd_Remaster
 				{
 					isMonitor = true;
 					(threadMonitor = new Thread(thread_Monitor)).Start();
-					runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Reboot Successfully");
+					Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}: [STAT] Reboot Successfully");
+					runtimeLogStreamWriter.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}: [STAT] Reboot Successfully");
 					break;
 				}
 			}
@@ -234,13 +238,13 @@ namespace HUC_BackEnd_Remaster
 				if(ProcessLog.isMonitor){ Console.WriteLine("Monitor is already Opened!"); return; }
 				ProcessLog.isMonitor = true;
 				(threadMonitor = new Thread(thread_Monitor)).Start();
-				Console.WriteLine("Monitor Opened!");
+				// Console.WriteLine("Monitor Opened!");
 			}
 			else
 			{
 				ProcessLog.isMonitor = false;
 				threadMonitor.Join();
-				Console.WriteLine("Monitor Closed!");
+				// Console.WriteLine("Monitor Closed!");
 			}
 		}
 		//**----------------------------方法-----------------------------------------------------
@@ -250,7 +254,7 @@ namespace HUC_BackEnd_Remaster
 			{
 				MySqlDataReader sqlReader = new MySqlCommand($"SELECT * FROM {pcsName} ORDER BY StartTime DESC LIMIT 1;", sqlCon).ExecuteReader();
 				sqlReader.Read();
-				Console.WriteLine($"{pcsName} last runtime: {sqlReader.GetDateTime("StartTime")} - {sqlReader.GetDateTime("EndTime")} for {sqlReader.GetDecimal("LastTime")}min\n");
+				Console.WriteLine($"{sqlReader.GetDateTime("StartTime")}-{sqlReader.GetDateTime("EndTime")} for {sqlReader.GetDecimal("LastTime")}min\n");
 			}
 			catch (Exception e)
 			{
@@ -333,7 +337,7 @@ namespace HUC_BackEnd_Remaster
 		{
 			if (pcsMntBlackList.Contains(pcsName))
 				pcsMntBlackList.Remove(pcsName);
-			Console.WriteLine("Monitor Running");
+			// Console.WriteLine("Monitor Running");
 			File.WriteAllLinesAsync(ProcessListFileDir, pcsMntBlackList.ToArray<string>());//！好耶！[]和数组的相互转化！
 			foreach (ProcessLog pcsCon in pcsMntList)
 			{
@@ -348,7 +352,7 @@ namespace HUC_BackEnd_Remaster
 			//!可以多次cmd…………
 			setMonitorStauts(false);
 			Console.WriteLine("Rebooting...");
-			runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Monitor Reboot");
+			runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: [STAT] Monitor Reboot");
 			pcsMntList.Add(new ProcessLog(pcsName));
 			setMonitorStauts(true);
 
@@ -403,7 +407,8 @@ namespace HUC_BackEnd_Remaster
 					if (this.startTime == null || this.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
 
 					new MySqlCommand("UPDATE {pcsName} SET EndTime = '{this.curPcs.endTime}', LastTime = {((DateTime)this.curPcs.endTime - (DateTime)this.curPcs.startTime).TotalMinutes} WHERE StartTime = '{this.curPcs.startTime}'", sqlCon).ExecuteNonQueryAsync();//！这个是异步方法，实际使用复杂自己查了
-					runtimeLogStreamWriter.WriteLine($"{this.endTime}: INFO {pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+					Console.WriteLine($"{((DateTime)this.endTime).ToString("yyyy-MM-dd HH:mm:ss")}: [INFO] AppEnd {pcsName}");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+					runtimeLogStreamWriter.WriteLine($"{((DateTime)this.endTime).ToString("yyyy-MM-dd HH:mm:ss")}: [INFO] AppEnd {pcsName}");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 				}
 			}
 			else
@@ -425,7 +430,8 @@ namespace HUC_BackEnd_Remaster
 							this.endTime = DateTime.Now.ToLocalTime();
 						}
 						new MySqlCommand($"UPDATE {pcsName} SET EndTime = '{this.endTime}', LastTime = {((DateTime)this.endTime - (DateTime)this.startTime).TotalMinutes} WHERE StartTime = '{this.startTime}';", sqlCon).ExecuteNonQueryAsync();
-						runtimeLogStreamWriter.WriteLine($"{this.endTime}: INFO {pcsName} Reboot in less then 5min");
+						Console.WriteLine($"{((DateTime)this.endTime).ToString("yyyy-MM-dd HH:mm:ss")}: [INFO] {pcsName} Reboot in less then 5min");
+						runtimeLogStreamWriter.WriteLine($"{((DateTime)this.endTime).ToString("yyyy-MM-dd HH:mm:ss")}: [INFO] {pcsName} Reboot in less then 5min");
 					}
 					else
 					{
@@ -433,7 +439,8 @@ namespace HUC_BackEnd_Remaster
 						this.startTime = DateTime.Now.ToLocalTime();
 						this.endTime = null;
 						new MySqlCommand($"INSERT INTO {pcsName} VALUES ('{this.startTime}', '{this.startTime}', 0);", sqlCon).ExecuteNonQueryAsync();
-						runtimeLogStreamWriter.WriteLine($"{this.startTime}: INFO {this.pcsName} Start");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+						Console.WriteLine($"{((DateTime)this.startTime).ToString("yyyy-MM-dd HH:mm:ss")}: [INFO] AppStart {this.pcsName}");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+						runtimeLogStreamWriter.WriteLine($"{((DateTime)this.startTime).ToString("yyyy-MM-dd HH:mm:ss")}: [INFO] AppStart {this.pcsName}");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 					}
 				}
 				//**----------------------------运行中-----------------------------------------------------

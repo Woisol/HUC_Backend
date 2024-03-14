@@ -4,3 +4,35 @@
 2024/3/14 15:06:39: INFO flomo Start
 2024/3/14 15:07:20: INFO altdrag End
 2024/3/14 15:07:20: INFO altdrag Reboot in less then 5min
+2024/3/14 19:13:30: STAT Monitor Initilized and Started
+2024/3/14 19:13:30: INFO altdrag Start
+2024/3/14 19:13:30: INFO code Start
+2024/3/14 19:13:30: INFO flomo Start
+2024/3/14 20:51:08: STAT Monitor Initilized and Started
+2024/3/14 20:51:08: INFO altdrag Start
+2024/3/14 20:51:08: INFO code Start
+2024/3/14 20:51:08: INFO flomo Start
+2024/3/14 20:58:15: [STAT] Monitor Started
+2024/3/14 20:58:15: INFO altdrag Reboot in less then 5min
+2024/3/14 20:58:16: INFO code Reboot in less then 5min
+2024/3/14 20:58:16: INFO flomo Reboot in less then 5min
+2024/3/14 20:58:46: [STAT] Monitor Stop
+2024/3/14 20:58:54: [STAT] Monitor Started
+2024/3/14 20:59:04: INFO altdrag End
+2024/3/14 20:59:04: INFO altdrag Reboot in less then 5min
+2024/3/14 21:13:32: [STAT] Monitor Started
+2024/3/14 21:13:32: [INFO] altdrag Reboot in less then 5min
+2024/3/14 21:13:32: [INFO] code Reboot in less then 5min
+2024/3/14 21:13:32: [INFO] flomo Reboot in less then 5min
+2024-03-14 21:21:04: [STAT] Monitor Started
+2024-03-14 21:21:04: [INFO] altdrag Reboot in less then 5min
+2024-03-14 21:21:04: [INFO] code Reboot in less then 5min
+2024-03-14 21:21:04: [INFO] flomo Reboot in less then 5min
+2024-03-14 21:21:44: [INFO] AppEnd altdrag
+2024-03-14 21:21:44: [INFO] altdrag Reboot in less then 5min
+2024-03-14 21:26:59: [STAT] Monitor Stop
+2024-03-14 21:27:23: [STAT] Monitor Started
+2024-03-14 21:28:04: [STAT] Monitor Stop
+2024-03-14 21:28:08: [STAT] Monitor Started
+2024-03-14 21:34:23: [STAT] Monitor Stop
+2024-03-14 21:34:23: [STAT] Monitor Started
