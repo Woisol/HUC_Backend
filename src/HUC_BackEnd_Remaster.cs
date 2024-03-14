@@ -11,19 +11,18 @@ using MySqlConnector;//！这句开始无法识别要在命令行：dotnet add p
 //~~ using Microsoft;
 //~~ using Microsoft.Win32;
 
-namespace MySqlTestSpace
+namespace HUC_BackEnd_Remaster
+// ！艹忘记了改变namespace就可以防止二义了呀！
 {
 	class Program
 	{
-		static void Main_Old()
-		//**----------------------------aka ConsoleControl-----------------------------------------------------
+		static void Main()
 		{
+		//**----------------------------aka ConsoleControl-----------------------------------------------------
 			try
 			{
 				ProcessControl.sqlCon = new MySqlConnection($"server=localhost;user=root;database={ProcessControl.DATABASE_NAME};port=3306;password=60017089");
 				ProcessControl.sqlCon.Open();ProcessControl.sqlCon.Close();
-				// try{new MySqlCommand($"USE {ProcessControl.DATABASE_NAME};", conn); }
-				//!这个无法作为判断……因为出错了完全不反应…………
 			}
 			catch
 			{
