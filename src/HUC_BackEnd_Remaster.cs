@@ -19,22 +19,19 @@ namespace HUC_BackEnd_Remaster
 		static void Main()
 		{
 		//**----------------------------aka ConsoleControl-----------------------------------------------------
-			try
-			{
-				ProcessControl.sqlCon = new MySqlConnection($"server=localhost;user=root;database={ProcessControl.DATABASE_NAME};port=3306;password=60017089");
-				ProcessControl.sqlCon.Open();ProcessControl.sqlCon.Close();
-			}
-			catch
-			{
-				Console.WriteLine($"Database {ProcessControl.DATABASE_NAME} not found, creating...");
+		//**----------------------------Sql cmd 监视进程初始化-----------------------------------------------------
+			ProcessLog.sqlCon = new MySqlConnection($"server=localhost;user=root;database={ProcessLog.DATABASE_NAME};port=3306;password=60017089");
+			try{ProcessLog.sqlCon.Open();ProcessLog.sqlCon.Close();}
+			catch{
+				Console.WriteLine($"Database {ProcessLog.DATABASE_NAME} not found, creating...");
 				MySqlConnection conn = new MySqlConnection($"server=localhost;user=root;port=3306;password=60017089");
 				conn.Open();
-				new MySqlCommand($"CREATE DATABASE {ProcessControl.DATABASE_NAME};", conn).ExecuteNonQuery();
-				new MySqlCommand($"USE {ProcessControl.DATABASE_NAME};", conn).ExecuteNonQuery();
+				new MySqlCommand($"CREATE DATABASE {ProcessLog.DATABASE_NAME};", conn).ExecuteNonQuery();
+				new MySqlCommand($"USE {ProcessLog.DATABASE_NAME};", conn).ExecuteNonQuery();
 				new MySqlCommand($"CREATE TABLE longtimenoaction (StartTime DateTime, EndTime DateTime, LastTime Decimal);",conn).ExecuteNonQuery();
 				new MySqlCommand($"INSERT INTO longtimenoaction VALUES ('{DateTime.Now.ToLocalTime()}', '{DateTime.Now.ToLocalTime()}', 0);", conn).ExecuteNonQuery();
 				conn.Close();
-				ProcessControl.sqlCon = new MySqlConnection($"server=localhost;user=root;database={ProcessControl.DATABASE_NAME};port=3306;password=60017089");
+				ProcessLog.sqlCon = new MySqlConnection($"server=localhost;user=root;database={ProcessLog.DATABASE_NAME};port=3306;password=60017089");
 			}
 
 			Process titleChangePcs = new Process();
@@ -42,23 +39,17 @@ namespace HUC_BackEnd_Remaster
 			titleChangePcs.StartInfo.Arguments = "/c title HUC";
 			titleChangePcs.Start();
 
-			(ProcessControl.threadMonitor = new Thread(ProcessControl.thread_Monitor)).Start();//！用新线程的方法！注意没有()
-			Console.WriteLine("ConsoleControl Started, type your command below:");
-																							   //~~ threadMonitor.Start();
+			try{(ProcessLog.threadMonitor = new Thread(ProcessLog.thread_Monitor)).Start();Console.WriteLine("Monitor Start Successfully"); }
+			// ！注意这个并不返回bool而是抛出异常…………
+			catch{ Console.WriteLine("Monitor Start Failed"); }
 
-			// SystemEvents.PowerModeChanged += ProcessControl.onPowerModeChanged;
-			//！这个方法似乎是旧方法了，在本电脑上无效…………
-			//！！！好耶！上网查就是要添加的包！dotnet add package Microsoft.Win32.SystemEvents --version 8.0.0
 			while (true)
 			{
-				// Thread.Sleep(20);//!要不然初始的存在信息就覆盖在>后面了
-				// Console.Write(">");
 				var input = Console.ReadLine();
 				if (input.ToLower() == "exit")
 				{
-					//td输出，以及下面
 					Console.WriteLine("Exiting...");
-					ProcessControl.setMonitorStauts(false);
+					ProcessLog.setMonitorStauts(false);
 					break;
 				}
 				else if (input.ToLower() == "help")
@@ -74,21 +65,21 @@ namespace HUC_BackEnd_Remaster
 				}
 				else if (input.ToLower() == "monitor on")
 				{
-					ProcessControl.setMonitorStauts(true);
+					ProcessLog.setMonitorStauts(true);
 				}
 				else if (input.ToLower() == "monitor off")
 				{
-					ProcessControl.setMonitorStauts(false);
+					ProcessLog.setMonitorStauts(false);
 				}
 				else if (input.ToLower() == "reboot")
 				{
 					Console.WriteLine("Rebooting...");
-					ProcessControl.setMonitorStauts(false);
-					ProcessControl.setMonitorStauts(true);
+					ProcessLog.setMonitorStauts(false);
+					ProcessLog.setMonitorStauts(true);
 				}
 				else if (input.ToLower() == "log")
 				{
-					ProcessControl.showRTLog();
+					ProcessLog.showRTLog();
 				}
 				else if(input.ToLower() == "clear")
 				{
@@ -99,100 +90,83 @@ namespace HUC_BackEnd_Remaster
 					if (input.ToLower() == "show apps")
 					{
 						Console.WriteLine("Apps Monitored:");
-						ProcessControl.showAppMonitored();
+						ProcessLog.showAppMonitored();
 					}
 					else if (input.ToLower() == "show blist")
 					{
 						Console.WriteLine("Blacklist:");
-						ProcessControl.showBlackList();
+						ProcessLog.showBlackList();
 					}
 					else if (new Regex(@"(?<=show )\w+", RegexOptions.IgnoreCase).IsMatch(input))
 					{
 						var pcsName = new Regex(@"(?<=show )\w+", RegexOptions.IgnoreCase).Match(input).Value;
-						//！忽略大小写的方法！
-						ProcessControl.showPcsRunTime(pcsName);
+						ProcessLog.showPcsRunTime(pcsName);
 					}
 				}
 				else if (new Regex(@"(?<=add )\w+", RegexOptions.IgnoreCase).IsMatch(input))
 				{
-					ProcessControl.addAppMonitored(new Regex(@"(?<=add )\w+", RegexOptions.IgnoreCase).Match(input).Value);
+					ProcessLog.addAppMonitored(new Regex(@"(?<=add )\w+", RegexOptions.IgnoreCase).Match(input).Value);
 				}
 				else if (new Regex(@"(?<=drop )\w+", RegexOptions.IgnoreCase).IsMatch(input))
 				{
-					ProcessControl.dropAppMonitored(new Regex(@"(?<=drop )\w+", RegexOptions.IgnoreCase).Match(input).Value);
+					ProcessLog.dropAppMonitored(new Regex(@"(?<=drop )\w+", RegexOptions.IgnoreCase).Match(input).Value);
 				}
 				else if (new Regex(@"(?<=delete )\w+", RegexOptions.IgnoreCase).IsMatch(input))
 				{
 					var pcsName = new Regex(@"(?<=delete )\w+", RegexOptions.IgnoreCase).Match(input).Value;
 					var existApp = false;
-					ProcessControl.pcsMntList.ForEach(p => { if (p.pcsName == pcsName) existApp = true; });
-					// if(!ProcessControl.pcsMntList.Contains(pcsName))Console.WriteLine("App not found");
+					ProcessLog.pcsMntList.ForEach(p => { if (p.pcsName == pcsName) existApp = true; });
+					// if(!ProcessLog.pcsMntList.Contains(pcsName))Console.WriteLine("App not found");
 					if (!existApp) { Console.WriteLine("App not found"); continue; }
 					Console.WriteLine($"Are you sure to permanently delete the app {pcsName} and its data? (y/n)");
 					var i = Console.ReadLine();
 					if (i.ToLower() == "y")
 					{
-						ProcessControl.deleteAppMonitored(pcsName);
+						ProcessLog.deleteAppMonitored(pcsName);
 					}
 				}
-
 				else { Console.WriteLine("Unknown command"); }
-				// switch(input)还是不用switch了……效率估计不行
 			}
-
-			// ProcessControl.mainLoop_Monitor();//静态方法不能用实例访问…………
-			// //！如果不使用异常try只能用getProcess检测所有进程是否包含code.exe…………
-			// catch { }
-			// ProcessList.Add(Process.GetProcessesByName("code.exe")[0]);//！注意这里如果找不到会报错IndexOutOfRange
-			// !ProcessList.Add(new Process = Process.GetProcessesByName("code.exe")[0]);
 		}
 	}
 	class ProcessLog
 	{
+		//**----------------------------总属性-----------------------------------------------------
+		public static bool isMonitor { get; set; } = true;
+		//**----------------------------进程属性-----------------------------------------------------
+		internal string pcsName = "";
 		internal DateTime? startTime { get; set; } = null;
 		internal DateTime? endTime { get; set; } = null;
 		internal bool isRunning { get; set; } = false;
-	}
-	class ProcessControl
-	{
-		//td鉴于要搞成dll，改一下修饰符…………
-		internal ProcessControl(string pcsName)
+		internal ProcessLog(string pcsName)
 		{
 			this.pcsName = pcsName;
 		}
-
+		//**----------------------------配置信息-----------------------------------------------------
 		internal static string ProcessListFileDir = @"pcsMntBlackList.plf";
 		internal static string runtimeLogFileDir = @"runtimeLog.rlf";
-		internal static string DATABASE_NAME = "HUC_AppUsageLog";
+		internal static string DATABASE_NAME = "HUC_AppUsageLog_test";
+		internal static List<ProcessLog> pcsMntList = new List<ProcessLog>();//~~~ = { new ProcessLog("Code"), new ProcessLog("flomo") };//!所以这个依然是应用名不过不要exe而已
+		internal static List<string> pcsMntBlackList = new List<string>();
+		//**----------------------------文件读写-----------------------------------------------------
 		internal static FileStream rlfStream = new FileStream(runtimeLogFileDir,FileMode.Append);
 		internal static StreamWriter runtimeLogStreamWriter = new StreamWriter(rlfStream);
-		public static bool isMonitor { get; set; } = true;
-		internal string pcsName = "";
 
 
-		internal ProcessLog pcs = new ProcessLog();
-		internal static List<ProcessControl> pcsMntList = new List<ProcessControl>();//~~~ = { new ProcessControl("Code"), new ProcessControl("flomo") };//!所以这个依然是应用名不过不要exe而已
-		internal static List<string> pcsMntBlackList = new List<string>();
+		// dtd检查一下必要性…………
+		//**----------------------------数据库读写-----------------------------------------------------
 		internal static MySqlConnection? sqlCon = null;
-		// internal static MySqlCommand sqlCmd = new MySqlCommand();
 		internal static MySqlDataReader? sqlReader = null;
+		//##----------------------------进程相关-----------------------------------------------------
 		internal static Thread threadMonitor = new Thread(thread_Monitor);
-		internal static void thread_Monitor()//!async X！注意这不是个标志，是在不能阻塞的方法里用，在里面用await来实现异步？
+		internal static void thread_Monitor()
 		{
-			//~~ List<ProcessLog> processLogList = new List<ProcessLog>();
 			runtimeLogStreamWriter.AutoFlush = true;
-			//！有这个！！否则不关闭不会显示！！！
+			//**----------------------------读取黑名单进程-----------------------------------------------------
 			if (!File.Exists(ProcessListFileDir))
             	File.Create(ProcessListFileDir).Close(); //!创建并关闭文件流
 			pcsMntBlackList = File.ReadAllLines(ProcessListFileDir).ToList<string>();//！芜湖
-																					 // if (sqlCon.State == ConnectionState.Open)
-																					 // 	sqlCon.Close();
 			sqlCon.Open();//！别忘艹…………而且不能多次调用不然出错
-						  //~~ sqlCmd.Connection = sqlCon;
-						  // List<ProcessControl> pcsMntList = new List<ProcessControl> { new ProcessControl("Code"), new ProcessControl("flomo") };
-						  //!不应该用List而是直接导入DB，不然运行久了卡死你。
-						  //~~ sqlCmd.CommandText = "SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = 'HUC_AppUsageLog_Test';";
-						  //!md不搞一个静态cmd了…………巨麻烦艹
 			sqlReader = new MySqlCommand($"SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = '{DATABASE_NAME}';", sqlCon).ExecuteReader();
 			// sqlCon.Close();
 			while (sqlReader.Read())
@@ -203,45 +177,42 @@ namespace HUC_BackEnd_Remaster
 				foreach (var curPcs in pcsMntList)
 				{
 					if (curPcs.pcsName.ToLower() == curPcsName.ToLower()) isAdd = false;
-					//！md所以为什么两次读取表名是不一样的？？？？啊啊啊！！！！
-					//!考虑还是用ini文件等记录黑名单
 				}
 				if (isAdd)
-					pcsMntList.Add(new ProcessControl(curPcsName));
+					pcsMntList.Add(new ProcessLog(curPcsName));
 			}
-			//!由于不能反复设置cmd的原因这里必须要重置一次…………
-			// sqlCmd.CommandText = null;并不行
-			sqlCon.Close(); sqlCon.Open();//！关键句…………不理解艹…………
-			Console.WriteLine("Monitor Running");
-			runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Monitor Start");
-			for (; isMonitor; Thread.Sleep(10000))//
+			sqlCon.Close(); sqlCon.Open();
+			Console.WriteLine("Monitor Initilized");
+			runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Monitor Initilized and Started");
+			//**----------------------------主监视代码-----------------------------------------------------
+			for (; isMonitor; Thread.Sleep(10000))
 			{
 				if(Process.GetProcessesByName("LongTimeNoAction").Length > 0)
 				{
                     runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Suspend");
-					foreach(ProcessControl pcsCon in pcsMntList)
+					foreach(ProcessLog pcsCon in pcsMntList)
 					{
-						if (pcsCon.pcs.isRunning == false) continue;
-						pcsCon.pcs.isRunning = false;
-						pcsCon.pcs.endTime = DateTime.Now.ToLocalTime();
-						if (pcsCon.pcs.startTime == null || pcsCon.pcs.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
+						if (pcsCon.isRunning == false) continue;
+						pcsCon.isRunning = false;
+						pcsCon.endTime = DateTime.Now.ToLocalTime();
+						if (pcsCon.startTime == null || pcsCon.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
 						new MySqlCommand("UPDATE {pcsName} SET EndTime = '{pcsCon.curPcs.endTime}', LastTime = {((DateTime)pcsCon.curPcs.endTime - (DateTime)pcsCon.curPcs.startTime).TotalMinutes} WHERE StartTime = '{pcsCon.curPcs.startTime}'", sqlCon).ExecuteNonQueryAsync();
-						runtimeLogStreamWriter.WriteLine($"{pcsCon.pcs.endTime}: INFO {pcsCon.pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+						runtimeLogStreamWriter.WriteLine($"{pcsCon.endTime}: INFO {pcsCon.pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 					}
 					new Thread(thread_WaitForReboot).Start();
                     break;
 				}
 
-				foreach (ProcessControl pcsCon in pcsMntList)
+				foreach (ProcessLog pcsCon in pcsMntList)
 				{
 					pcsCon.getPcsStatus();
 				}
 			}
-			//!先阻塞吧感觉好像也行
 			//td考虑电脑睡眠后的处理
 			sqlCon.Close();
 				runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Monitor Stop");
 		}
+		//**----------------------------重启代码-----------------------------------------------------
 		internal static void thread_WaitForReboot()
 		{
 			while(true)
@@ -250,7 +221,7 @@ namespace HUC_BackEnd_Remaster
 				if(Process.GetProcessesByName("LongTimeNoAction").Length == 0)
 				{
 					isMonitor = true;
-					(threadMonitor = new Thread(thread_Monitor)).Start();//!艹不能重启啊…………那我搞变量有什么用…………
+					(threadMonitor = new Thread(thread_Monitor)).Start();
 					runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Reboot Successfully");
 					break;
 				}
@@ -260,29 +231,25 @@ namespace HUC_BackEnd_Remaster
 		{
 			if (isMonitor)
 			{
-				if(ProcessControl.isMonitor){ Console.WriteLine("Monitor is already Opened!"); return; }
-				ProcessControl.isMonitor = true;
-				(threadMonitor = new Thread(thread_Monitor)).Start();//!艹不能重启啊…………那我搞变量有什么用…………
+				if(ProcessLog.isMonitor){ Console.WriteLine("Monitor is already Opened!"); return; }
+				ProcessLog.isMonitor = true;
+				(threadMonitor = new Thread(thread_Monitor)).Start();
 				Console.WriteLine("Monitor Opened!");
 			}
 			else
 			{
-				ProcessControl.isMonitor = false;
-				//这种方式其实不太正规吧…………
-				// if (threadMonitor != null && threadMonitor.IsAlive)
-				threadMonitor.Join(); //！重要方法！！！ 等待结束否则connection没有close就打开无法加载新的command！
-									  //！后面出现了重复检测的问题，开始一直以为是线程没关掉但是已经关了，在于List的Add加多了！！！！！！！！！！！！！
+				ProcessLog.isMonitor = false;
+				threadMonitor.Join();
 				Console.WriteLine("Monitor Closed!");
 			}
 		}
+		//**----------------------------方法-----------------------------------------------------
 		internal static void showPcsRunTime(string pcsName)
 		{
-			// MySqlConnection sqlCon = new MySqlConnection($"Server=localhost;user=root;Database={DATABASE_NAME};port=3306;password=60017089;");
-			// sqlCon.Open();
 			try
 			{
 				MySqlDataReader sqlReader = new MySqlCommand($"SELECT * FROM {pcsName} ORDER BY StartTime DESC LIMIT 1;", sqlCon).ExecuteReader();
-				sqlReader.Read();//！当前上下文中不存在名称“sqlReader”看来try里面是一个密闭空间…………
+				sqlReader.Read();
 				Console.WriteLine($"{pcsName} last runtime: {sqlReader.GetDateTime("StartTime")} - {sqlReader.GetDateTime("EndTime")} for {sqlReader.GetDecimal("LastTime")}min\n");
 			}
 			catch (Exception e)
@@ -291,7 +258,6 @@ namespace HUC_BackEnd_Remaster
 				Console.WriteLine(e.Message);
 				return;
 			}
-			//！sqlReader["StartTime"]和sqlReader.GetString("EndTime")的区别在于前者不知道返回类型返回的是object
 			sqlCon.Close();
 			sqlCon.Open();
 		}
@@ -335,7 +301,7 @@ namespace HUC_BackEnd_Remaster
 				//td输出
 				Console.WriteLine("No app monitored!");
 			}
-			foreach (ProcessControl pcsCon in pcsMntList)
+			foreach (ProcessLog pcsCon in pcsMntList)
 			{
 				//td输出
 				Console.WriteLine(pcsCon.pcsName);
@@ -360,18 +326,16 @@ namespace HUC_BackEnd_Remaster
 		{
 			Process notepadPcs = new Process();
 			notepadPcs.StartInfo.FileName = "notepad";
-			notepadPcs.StartInfo.Arguments = @$"""{ProcessControl.runtimeLogFileDir}"" /c";
+			notepadPcs.StartInfo.Arguments = @$"""{ProcessLog.runtimeLogFileDir}"" /c";
 			notepadPcs.Start();
 		}
 		internal static void addAppMonitored(string pcsName)
 		{
-			// pcsMntList.ForEach(pcsCon => if(pcsCon.pcsName == pcsName)throw new Exception("App already monitored!");)
-			//！wokforeach的行内写法！！！可f惜if用不了
 			if (pcsMntBlackList.Contains(pcsName))
 				pcsMntBlackList.Remove(pcsName);
 			Console.WriteLine("Monitor Running");
 			File.WriteAllLinesAsync(ProcessListFileDir, pcsMntBlackList.ToArray<string>());//！好耶！[]和数组的相互转化！
-			foreach (ProcessControl pcsCon in pcsMntList)
+			foreach (ProcessLog pcsCon in pcsMntList)
 			{
 				if (pcsCon.pcsName == pcsName)
 				// throw new Exception("App already monitored!");
@@ -380,15 +344,12 @@ namespace HUC_BackEnd_Remaster
 				}
 			}
 			new MySqlCommand($"CREATE TABLE IF NOT EXISTS {pcsName} LIKE longtimenoaction;", sqlCon).ExecuteNonQuery();//!艹这里不能用异步了…………
-																											//td新建一个样板表
 			new MySqlCommand($"INSERT INTO {pcsName} VALUES ('{DateTime.Now.ToLocalTime()}', '{DateTime.Now.ToLocalTime()}', 0);", sqlCon).ExecuteNonQueryAsync();
 			//!可以多次cmd…………
-			//！不能在foreach的时候改变List，所以只能重启进程了………………
-			// threadReboot();
 			setMonitorStauts(false);
 			Console.WriteLine("Rebooting...");
 			runtimeLogStreamWriter.WriteLine($"{DateTime.Now}: STAT Monitor Reboot");
-			pcsMntList.Add(new ProcessControl(pcsName));
+			pcsMntList.Add(new ProcessLog(pcsName));
 			setMonitorStauts(true);
 
 		}
@@ -398,7 +359,7 @@ namespace HUC_BackEnd_Remaster
 			else pcsMntBlackList.Add(pcsName);
 			setMonitorStauts(false);
 			var existApp = false;
-			foreach (ProcessControl pcsCon in pcsMntList)
+			foreach (ProcessLog pcsCon in pcsMntList)
 			{
 				if (pcsCon.pcsName == pcsName)
 				{
@@ -424,124 +385,66 @@ namespace HUC_BackEnd_Remaster
 			new MySqlCommand($"DROP TABLE IF EXISTS {pcsName};", sqlCon).ExecuteNonQueryAsync();
 			Console.WriteLine($"App {pcsName} and its data has been deleted!");
 		}
-		// internal static void threadReboot()
-		// {
-		// }
 		void getPcsStatus()
-		//**理清思路
+		//**----------------------------理清思路-----------------------------------------------------
 		//未启动：null, null, false				where Lengh = 0
 		//启动：[startTime], null, [true]		where Judge
 		//运行中：同
 		//结束：startTime, [endTime], [false]	where Judge 写入and创建新的
 		{
-			// ProcessLog curPcs = new ProcessLog();//!开始忘记new了导致前后影响——但是同一个应用的不能丢失啊艹…………
 			var tmpPcsList = Process.GetProcessesByName(pcsName);
-			//dtd逻辑可以优化一下——现在优化不了了
 			if (tmpPcsList.Length == 0)
 			{
 				//**----------------------------关闭时-----------------------------------------------------
-				if (this.pcs.isRunning == true)
+				if (this.isRunning == true)
 				{
-					// pcs.endTime = new DateTime().ToLocalTime();//！错误写法，会表示1900年…………
-					this.pcs.isRunning = false;
-					this.pcs.endTime = DateTime.Now.ToLocalTime();
-					if (this.pcs.startTime == null || this.pcs.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
+					this.isRunning = false;
+					this.endTime = DateTime.Now.ToLocalTime();
+					if (this.startTime == null || this.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
 
-					//td写入数据库
-					// sqlCmd.CommandText = $"UPDATE {pcsName} SET EndTime = '{this.curPcs.endTime}', LastTime = {((DateTime)this.curPcs.endTime - (DateTime)this.curPcs.startTime).TotalMinutes} WHERE StartTime = '{this.curPcs.startTime}'";//！md这里一直说没有这个函数就是在于可空类型…………
-					// sqlCmd.ExecuteNonQueryAsync();//！这个是异步方法，实际使用复杂自己查了
-					// sqlCon.Open();
 					new MySqlCommand("UPDATE {pcsName} SET EndTime = '{this.curPcs.endTime}', LastTime = {((DateTime)this.curPcs.endTime - (DateTime)this.curPcs.startTime).TotalMinutes} WHERE StartTime = '{this.curPcs.startTime}'", sqlCon).ExecuteNonQueryAsync();//！这个是异步方法，实际使用复杂自己查了
-																																																																	   //not错误写法，可能导致注入！！！https://zhuanlan.zhihu.com/p/28401873 是喔用了这样的写法也不会担心哈哈
-																																																																	   //!不对注意例子中是WHERE NAME = ...的…………这样依然会导致注入
-
-					runtimeLogStreamWriter.WriteLine($"{this.pcs.endTime}: INFO {pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+					runtimeLogStreamWriter.WriteLine($"{this.endTime}: INFO {pcsName} End");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 				}
 			}
 			else
 			{
 				//**----------------------------启动时-----------------------------------------------------
-				if (this.pcs.isRunning == false)
+				if (this.isRunning == false)
 				{
-					this.pcs.isRunning = true;
+					this.isRunning = true;
 
 					MySqlConnection lastCon = new MySqlConnection($"server=localhost;user=root;database={DATABASE_NAME};port=3306;password=60017089");
 					lastCon.Open();//麻了又忘
 					MySqlDataReader lastDataReader = new MySqlCommand($"SELECT * FROM {pcsName} ORDER BY EndTime DESC LIMIT 1;", lastCon).ExecuteReader();
 					lastDataReader.Read();
-					// var lastEndTime = lastDataReader.GetDateTime("EndTime");
-					//！新建了一个app table但是没有初始数据导致异常！
 					if ((DateTime.Now - lastDataReader.GetDateTime("EndTime")).TotalMinutes < 5)
 					{
-						//~~ this.curPcs.startTime = lastDataReader.GetDateTime("StartTime");
-						//~ sqlCmd.CommandText = $"UPDATE {pcsName} SET EndTime = '{this.curPcs.endTime}', LastTime = {((DateTime)this.curPcs.endTime - (DateTime)this.curPcs.startTime).TotalMinutes} WHERE StartTime = '{this.curPcs.startTime}';";//！md这里一直说没有这个函数就是在于可空类型…………
-						//!这里忽略了开始检测时就已经启动的情况……
-						if (this.pcs.startTime == null || this.pcs.endTime == null)
+						if (this.startTime == null || this.endTime == null)
 						{
-							this.pcs.startTime = lastDataReader.GetDateTime("StartTime");
-							this.pcs.endTime = DateTime.Now.ToLocalTime();
+							this.startTime = lastDataReader.GetDateTime("StartTime");
+							this.endTime = DateTime.Now.ToLocalTime();
 						}
-						new MySqlCommand($"UPDATE {pcsName} SET EndTime = '{this.pcs.endTime}', LastTime = {((DateTime)this.pcs.endTime - (DateTime)this.pcs.startTime).TotalMinutes} WHERE StartTime = '{this.pcs.startTime}';", sqlCon).ExecuteNonQueryAsync();
-						runtimeLogStreamWriter.WriteLine($"{this.pcs.endTime}: INFO {pcsName} Reboot in less then 5min");
+						new MySqlCommand($"UPDATE {pcsName} SET EndTime = '{this.endTime}', LastTime = {((DateTime)this.endTime - (DateTime)this.startTime).TotalMinutes} WHERE StartTime = '{this.startTime}';", sqlCon).ExecuteNonQueryAsync();
+						runtimeLogStreamWriter.WriteLine($"{this.endTime}: INFO {pcsName} Reboot in less then 5min");
 					}
 					else
 					{
-						this.pcs = new ProcessLog();
-						this.pcs.isRunning = true;
-						this.pcs.startTime = DateTime.Now.ToLocalTime();
-						//~~ sqlCmd.CommandText = $"INSERT INTO {pcsName} VALUES ('{this.curPcs.startTime}', '{this.curPcs.startTime}', 0);";
-						new MySqlCommand($"INSERT INTO {pcsName} VALUES ('{this.pcs.startTime}', '{this.pcs.startTime}', 0);", sqlCon).ExecuteNonQueryAsync();
-						//INSERT INTO AltDrag VALUES ('2024-01-01 00:00:00', '2024-01-01 00:00:00', 0);
-						runtimeLogStreamWriter.WriteLine($"{this.pcs.startTime}: INFO {pcsName} Start");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
+						this.isRunning = true;
+						this.startTime = DateTime.Now.ToLocalTime();
+						this.endTime = null;
+						new MySqlCommand($"INSERT INTO {pcsName} VALUES ('{this.startTime}', '{this.startTime}', 0);", sqlCon).ExecuteNonQueryAsync();
+						runtimeLogStreamWriter.WriteLine($"{this.startTime}: INFO {this.pcsName} Start");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
 					}
 				}
-				//!要考虑到如果长时间运行数据完全不更新…………
 				//**----------------------------运行中-----------------------------------------------------
 				else
 				{
-					this.pcs.endTime = DateTime.Now.ToLocalTime();
-					if (this.pcs.startTime == null || this.pcs.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
-					//~~ sqlCmd.CommandText = $"UPDATE {pcsName} SET EndTime = '{this.curPcs.endTime}', LastTime = {((DateTime)this.curPcs.endTime - (DateTime)this.curPcs.startTime).TotalMinutes} WHERE StartTime = '{this.curPcs.startTime}';";//！md这里一直说没有这个函数就是在于可空类型…………
-					new MySqlCommand($"UPDATE {pcsName} SET EndTime = '{this.pcs.endTime}', LastTime = {((DateTime)this.pcs.endTime - (DateTime)this.pcs.startTime).TotalMinutes} WHERE StartTime = '{this.pcs.startTime}';", sqlCon).ExecuteNonQueryAsync();
-					//漏个;艹
-					//!开始一直输出0，但是看来应该是decimal也显示的是四舍五入的整数艹其实没有问题了的
-					///UPDATE flomo SET EndTime = '2024-01-31 22:52:19', LastTime = 666 WHERE StartTime = '2024-01-31 22:52:04'
-					//~~ sqlCmd.ExecuteNonQueryAsync();
+					this.endTime = DateTime.Now.ToLocalTime();
+					if (this.startTime == null || this.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
+					new MySqlCommand($"UPDATE {pcsName} SET EndTime = '{this.endTime}', LastTime = {((DateTime)this.endTime - (DateTime)this.startTime).TotalMinutes} WHERE StartTime = '{this.startTime}';", sqlCon).ExecuteNonQueryAsync();
 				}
 			}
 
 		}
-		//~~ internal void onPowerModeChanged()//!static对本项无效
-		//~~ {
-
-		//~~ 	Console.WriteLine("PowerModeChanged!");
-		//~~ 	foreach(ProcessControl pcsCon in pcsMntList)
-		//~~ 	{
-
-		//~~ 	}
-		//~~ }
-		//~~ void SystemEvents_PowerModeChanged(object sender, PowerModeChangedEventArgs e)
-        //~~ {
-        //~~     switch (e.Mode)
-        //~~     {
-
-        //~~         case PowerModes.Resume://系统挂起到重新唤醒
-        //~~             Console.WriteLine(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + "  Resume\n");
-		//~~ 			threadMonitor = new Thread(thread_Monitor);
-        //~~             break;
-        //~~         case PowerModes.Suspend://系统挂起到重新唤醒
-        //~~             Console.WriteLine(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + "  Suspend\n");
-		//~~ 			foreach(ProcessControl pcsCon in pcsMntList)
-		//~~ 			{
-		//~~ 				if (pcsCon.curPcs.isRunning == false) continue;
-		//~~ 				pcsCon.curPcs.isRunning = false;
-		//~~ 				pcsCon.curPcs.endTime = DateTime.Now.ToLocalTime();
-		//~~ 				if (pcsCon.curPcs.startTime == null || pcsCon.curPcs.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
-		//~~ 				new MySqlCommand("UPDATE {pcsName} SET EndTime = '{pcsCon.curPcs.endTime}', LastTime = {((DateTime)pcsCon.curPcs.endTime - (DateTime)pcsCon.curPcs.startTime).TotalMinutes} WHERE StartTime = '{pcsCon.curPcs.startTime}'", sqlCon).ExecuteNonQueryAsync();
-		//~~ 				Console.WriteLine($"{pcsName} end: {pcsCon.curPcs.startTime} ~ {pcsCon.curPcs.endTime}");//!ToString("yyyy-MM-dd HH:mm:ss")}但是似乎不太行
-		//~~ 			}
-        //~~             break;
-        //~~     }
-        //~~ }
 	}
 }
