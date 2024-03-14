@@ -5,6 +5,7 @@ using System.Data.SqlTypes;
 using System.Diagnostics;
 using System.Formats.Asn1;
 using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using MySqlConnector;//！这句开始无法识别要在命令行：dotnet add package MySqlConnector
@@ -14,24 +15,32 @@ using MySqlConnector;//！这句开始无法识别要在命令行：dotnet add p
 namespace HUC_BackEnd_Remaster
 // ！艹忘记了改变namespace就可以防止二义了呀！
 {
-	class Program
+	class MainProcess
 	{
+		public static Config? config;
 		static void Main()
 		{
 		//**----------------------------aka ConsoleControl-----------------------------------------------------
+		//**----------------------------读取json配置文件-----------------------------------------------------
+			if(File.Exists("./config.json")){
+				var configFile = File.ReadAllText("./config.json");
+				config = JsonSerializer.Deserialize<Config>(configFile);
+				// ！艹解决了…………为什么必须是同一个类下面的………………
+			}
+
 		//**----------------------------Sql cmd 监视进程初始化-----------------------------------------------------
-			ProcessLog.sqlCon = new MySqlConnection($"server=localhost;user=root;database={ProcessLog.DATABASE_NAME};port=3306;password=60017089");
+			ProcessLog.sqlCon = new MySqlConnection($"server=localhost;user=root;database={config.DATABASE_NAME};port=3306;password=60017089");
 			try{ProcessLog.sqlCon.Open();ProcessLog.sqlCon.Close();}
 			catch{
-				Console.WriteLine($"Database {ProcessLog.DATABASE_NAME} not found, creating...");
+				Console.WriteLine($"Database {config.DATABASE_NAME} not found, creating...");
 				MySqlConnection conn = new MySqlConnection($"server=localhost;user=root;port=3306;password=60017089");
 				conn.Open();
-				new MySqlCommand($"CREATE DATABASE {ProcessLog.DATABASE_NAME};", conn).ExecuteNonQuery();
-				new MySqlCommand($"USE {ProcessLog.DATABASE_NAME};", conn).ExecuteNonQuery();
+				new MySqlCommand($"CREATE DATABASE {config.DATABASE_NAME};", conn).ExecuteNonQuery();
+				new MySqlCommand($"USE {config.DATABASE_NAME};", conn).ExecuteNonQuery();
 				new MySqlCommand($"CREATE TABLE longtimenoaction (StartTime DateTime, EndTime DateTime, LastTime Decimal);",conn).ExecuteNonQuery();
 				new MySqlCommand($"INSERT INTO longtimenoaction VALUES ('{DateTime.Now.ToLocalTime()}', '{DateTime.Now.ToLocalTime()}', 0);", conn).ExecuteNonQuery();
 				conn.Close();
-				ProcessLog.sqlCon = new MySqlConnection($"server=localhost;user=root;database={ProcessLog.DATABASE_NAME};port=3306;password=60017089");
+				ProcessLog.sqlCon = new MySqlConnection($"server=localhost;user=root;database={config.DATABASE_NAME};port=3306;password=60017089");
 			}
 
 			Process titleChangePcs = new Process();
@@ -129,6 +138,16 @@ namespace HUC_BackEnd_Remaster
 			}
 		}
 	}
+	public class Config{
+		// ！艹类也可以public…………
+		// public Config(string ProcessListFileDir, string RuntimeLogFileDir, string DATABASE_NAME){
+		// 	this.ProcessListFileDir = ProcessListFileDir;this.RuntimeLogFileDir = RuntimeLogFileDir;this.DATABASE_NAME = DATABASE_NAME;
+		// }
+		public string ProcessListFileDir{get;set;} = "";
+		public string RuntimeLogFileDir{get;set;} = "";
+		public string DATABASE_NAME{get;set;} = "";
+		}
+
 	class ProcessLog
 	{
 		//**----------------------------总属性-----------------------------------------------------
@@ -143,13 +162,11 @@ namespace HUC_BackEnd_Remaster
 			this.pcsName = pcsName;
 		}
 		//**----------------------------配置信息-----------------------------------------------------
-		internal static string ProcessListFileDir = @"pcsMntBlackList.plf";
-		internal static string runtimeLogFileDir = @"runtimeLog.rlf";
-		internal static string DATABASE_NAME = "HUC_AppUsageLog_test";
+		// public static Config? config = new Config();
 		internal static List<ProcessLog> pcsMntList = new List<ProcessLog>();//~~~ = { new ProcessLog("Code"), new ProcessLog("flomo") };//!所以这个依然是应用名不过不要exe而已
 		internal static List<string> pcsMntBlackList = new List<string>();
 		//**----------------------------文件读写-----------------------------------------------------
-		internal static FileStream rlfStream = new FileStream(runtimeLogFileDir,FileMode.Append);
+		internal static FileStream rlfStream = new FileStream(MainProcess.config.RuntimeLogFileDir,FileMode.Append);
 		internal static StreamWriter runtimeLogStreamWriter = new StreamWriter(rlfStream);
 
 
@@ -163,11 +180,11 @@ namespace HUC_BackEnd_Remaster
 		{
 			runtimeLogStreamWriter.AutoFlush = true;
 			//**----------------------------读取黑名单进程-----------------------------------------------------
-			if (!File.Exists(ProcessListFileDir))
-            	File.Create(ProcessListFileDir).Close(); //!创建并关闭文件流
-			pcsMntBlackList = File.ReadAllLines(ProcessListFileDir).ToList<string>();//！芜湖
+			if (!File.Exists(MainProcess.config.ProcessListFileDir))
+            	File.Create(MainProcess.config.ProcessListFileDir).Close(); //!创建并关闭文件流
+			pcsMntBlackList = File.ReadAllLines(MainProcess.config.ProcessListFileDir).ToList<string>();//！芜湖
 			sqlCon.Open();//！别忘艹…………而且不能多次调用不然出错
-			sqlReader = new MySqlCommand($"SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = '{DATABASE_NAME}';", sqlCon).ExecuteReader();
+			sqlReader = new MySqlCommand($"SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = '{MainProcess.config.DATABASE_NAME}';", sqlCon).ExecuteReader();
 			// sqlCon.Close();
 			while (sqlReader.Read())
 			{
@@ -268,10 +285,10 @@ namespace HUC_BackEnd_Remaster
 		public static string[] getAllPcsRunTime(string timeStr)
 		{
 			List<string> pcsList = new List<string>();
-			MySqlConnection sqlConnection = new MySqlConnection($"Server=localhost;user=root;Database={DATABASE_NAME};port=3306;password=60017089;");
+			MySqlConnection sqlConnection = new MySqlConnection($"Server=localhost;user=root;Database={MainProcess.config.DATABASE_NAME};port=3306;password=60017089;");
 			List<string> res = new List<string>();
 			sqlConnection.Open();
-			MySqlDataReader sqlReader = new MySqlCommand($"SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = '{DATABASE_NAME}';", sqlConnection).ExecuteReader();
+			MySqlDataReader sqlReader = new MySqlCommand($"SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = '{MainProcess.config.DATABASE_NAME}';", sqlConnection).ExecuteReader();
 			while (sqlReader.Read())
 				pcsList.Add(sqlReader.GetString(0));
 			try
@@ -330,7 +347,7 @@ namespace HUC_BackEnd_Remaster
 		{
 			Process notepadPcs = new Process();
 			notepadPcs.StartInfo.FileName = "notepad";
-			notepadPcs.StartInfo.Arguments = @$"""{ProcessLog.runtimeLogFileDir}"" /c";
+			notepadPcs.StartInfo.Arguments = @$"""{MainProcess.config.RuntimeLogFileDir}"" /c";
 			notepadPcs.Start();
 		}
 		internal static void addAppMonitored(string pcsName)
@@ -338,7 +355,7 @@ namespace HUC_BackEnd_Remaster
 			if (pcsMntBlackList.Contains(pcsName))
 				pcsMntBlackList.Remove(pcsName);
 			// Console.WriteLine("Monitor Running");
-			File.WriteAllLinesAsync(ProcessListFileDir, pcsMntBlackList.ToArray<string>());//！好耶！[]和数组的相互转化！
+			File.WriteAllLinesAsync(MainProcess.config.ProcessListFileDir, pcsMntBlackList.ToArray<string>());//！好耶！[]和数组的相互转化！
 			foreach (ProcessLog pcsCon in pcsMntList)
 			{
 				if (pcsCon.pcsName == pcsName)
@@ -374,17 +391,17 @@ namespace HUC_BackEnd_Remaster
 					break;
 				}
 			}
-			if (existApp) File.WriteAllLinesAsync(ProcessListFileDir, pcsMntBlackList.ToArray<string>());
+			if (existApp) File.WriteAllLinesAsync(MainProcess.config.ProcessListFileDir, pcsMntBlackList.ToArray<string>());
 			else Console.WriteLine("App not found!");
 			setMonitorStauts(true);
 		}
 		internal static void deleteAppMonitored(string pcsName)
 		{
-			var originStr = File.ReadAllLines(ProcessListFileDir);
+			var originStr = File.ReadAllLines(MainProcess.config.ProcessListFileDir);
 			List<string> resStrList = new List<string>();
 			foreach (var curStr in originStr)
 				if (curStr != pcsName) resStrList.Add(curStr);
-			File.WriteAllLines(ProcessListFileDir, resStrList.ToArray<string>());
+			File.WriteAllLines(MainProcess.config.ProcessListFileDir, resStrList.ToArray<string>());
 
 			new MySqlCommand($"DROP TABLE IF EXISTS {pcsName};", sqlCon).ExecuteNonQueryAsync();
 			Console.WriteLine($"App {pcsName} and its data has been deleted!");
@@ -418,7 +435,7 @@ namespace HUC_BackEnd_Remaster
 				{
 					this.isRunning = true;
 
-					MySqlConnection lastCon = new MySqlConnection($"server=localhost;user=root;database={DATABASE_NAME};port=3306;password=60017089");
+					MySqlConnection lastCon = new MySqlConnection($"server=localhost;user=root;database={MainProcess.config.DATABASE_NAME};port=3306;password=60017089");
 					lastCon.Open();//麻了又忘
 					MySqlDataReader lastDataReader = new MySqlCommand($"SELECT * FROM {pcsName} ORDER BY EndTime DESC LIMIT 1;", lastCon).ExecuteReader();
 					lastDataReader.Read();
