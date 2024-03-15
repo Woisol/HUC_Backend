@@ -230,6 +230,7 @@ namespace HUC_BackEnd_Remaster
 			//dtd考虑电脑睡眠后的处理
 			foreach(ProcessLog pcsCon in pcsMntList){
 				pcsCon.shutdownPcs();
+				Console.Out.Flush();
 			}
 			sqlCon.Close();
 				Console.WriteLine($"{DateTime.Now.ToString("HH:mm:ss")}: [STAT] Monitor Stop");
