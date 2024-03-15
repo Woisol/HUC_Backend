@@ -20,7 +20,10 @@ namespace HUC_BackEnd_Remaster
 		public static Config? config;
 		static void Main()
 		{
-		//**----------------------------aka ConsoleControl-----------------------------------------------------
+			//**----------------------------aka ConsoleControl-----------------------------------------------------
+			//~~ //**----------------------------原来是可以修改窗口大小的！并不行-----------------------------------------------------
+			//~~ Console.WindowWidth = 200;
+			//~~ Console.WindowHeight = 300;
 		//**----------------------------读取json配置文件-----------------------------------------------------
 			if(!File.Exists("./config.json")){
 				File.Open("./config.json", FileMode.Create).Close();
@@ -230,7 +233,6 @@ namespace HUC_BackEnd_Remaster
 			//dtd考虑电脑睡眠后的处理
 			foreach(ProcessLog pcsCon in pcsMntList){
 				pcsCon.shutdownPcs();
-				Console.Out.Flush();
 			}
 			sqlCon.Close();
 				Console.WriteLine($"{DateTime.Now.ToString("HH:mm:ss")}: [STAT] Monitor Stop");
@@ -474,6 +476,7 @@ namespace HUC_BackEnd_Remaster
 				new MySqlCommand("UPDATE {pcsName} SET EndTime = '{this.curPcs.endTime}', LastTime = {((DateTime)this.curPcs.endTime - (DateTime)this.curPcs.startTime).TotalMinutes} WHERE StartTime = '{this.curPcs.startTime}'", sqlCon).ExecuteNonQueryAsync();//！这个是异步方法，实际使用复杂自己查了
 				Console.WriteLine($"{((DateTime)this.endTime).ToString("HH:mm:ss")}: [INFO] AppEnd {pcsName}");
 				runtimeLogStreamWriter.WriteLine($"{((DateTime)this.endTime).ToString("yyyy-MM-dd HH:mm:ss")}: [INFO] AppEnd {pcsName}");
+				// Console.Out.Flush();
 			}
 		}
 	}
