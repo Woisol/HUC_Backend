@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "BWMt7fc61H69tycv16hG8z67m4QIzoXvOUTUYGltzepxTGjfoCS/N3mu9kddIerjpKZITk4V9IIzwYB1MLKEqg==",
+  "dgSpecHash": "AQoHLJ1irMErv4YUT+z7jSrQxFGMFoBAlS6Cc9cK3h5Sk1XFYxL7ebkShLsr1O32d91tjrhJZCdz8FSG/YJ2CQ==",
   "success": true,
-  "projectFilePath": "D:\\Code\\C#\\MySQL Test\\MySQL Test.csproj",
+  "projectFilePath": "D:\\Code\\C#\\HUC_Backend\\HUC_Backend.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Woisol-G\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\7.0.1\\microsoft.extensions.logging.abstractions.7.0.1.nupkg.sha512",
     "C:\\Users\\Woisol-G\\.nuget\\packages\\mysqlconnector\\2.3.5\\mysqlconnector.2.3.5.nupkg.sha512"

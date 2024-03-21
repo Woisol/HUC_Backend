@@ -1,0 +1,7 @@
+D:\Code\C#\HUC_Backend\bin\Release\net8.0\publish\HUC_Backend.exe
+D:\Code\C#\HUC_Backend\bin\Release\net8.0\publish\HUC_Backend.dll
+D:\Code\C#\HUC_Backend\bin\Release\net8.0\publish\HUC_Backend.deps.json
+D:\Code\C#\HUC_Backend\bin\Release\net8.0\publish\HUC_Backend.runtimeconfig.json
+D:\Code\C#\HUC_Backend\bin\Release\net8.0\publish\HUC_Backend.pdb
+D:\Code\C#\HUC_Backend\bin\Release\net8.0\publish\Microsoft.Extensions.Logging.Abstractions.dll
+D:\Code\C#\HUC_Backend\bin\Release\net8.0\publish\MySqlConnector.dll

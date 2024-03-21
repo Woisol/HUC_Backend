@@ -149,11 +149,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Code\\C#\\MySQL Test\\MySQL Test.csproj",
-      "projectName": "MySQL Test",
-      "projectPath": "D:\\Code\\C#\\MySQL Test\\MySQL Test.csproj",
+      "projectUniqueName": "D:\\Code\\C#\\HUC_Backend\\HUC_Backend.csproj",
+      "projectName": "HUC_Backend",
+      "projectPath": "D:\\Code\\C#\\HUC_Backend\\HUC_Backend.csproj",
       "packagesPath": "C:\\Users\\Woisol-G\\.nuget\\packages\\",
-      "outputPath": "D:\\Code\\C#\\MySQL Test\\obj\\",
+      "outputPath": "D:\\Code\\C#\\HUC_Backend\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "D:\\Coding\\Microsoft Visual Studio Shared\\NuGetPackages"

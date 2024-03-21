@@ -97,3 +97,7 @@
 2024-03-15 17:23:57: [INFO] altdrag Reboot in less then 5min
 2024-03-15 17:23:57: [INFO] code Reboot in less then 5min
 2024-03-15 17:23:57: [INFO] flomo Reboot in less then 5min
+2024-03-18 21:05:06: [STAT] Monitor Started
+2024-03-18 21:05:06: [INFO] AppStart altdrag
+2024-03-18 21:05:06: [INFO] AppStart code
+2024-03-18 21:05:06: [INFO] AppStart flomo

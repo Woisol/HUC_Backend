@@ -25,11 +25,11 @@ namespace HUC_BackEnd_Remaster
 			//~~ Console.WindowWidth = 200;
 			//~~ Console.WindowHeight = 300;
 		//**----------------------------读取json配置文件-----------------------------------------------------
-			if(!File.Exists("./config.json")){
-				File.Open("./config.json", FileMode.Create).Close();
-				File.WriteAllText("./config.json","{\r\n\t\"ProcessListFileDir\": \"pcsMntBlackList.plf\",\r\n\t\"RuntimeLogFileDir\": \"runtimeLog.rlf\",\r\n\t\"DATABASE_NAME\": \"HUC_AppUsageLog\"\r\n}");
+			if(!File.Exists("../config.json")){
+				File.Open("../config.json", FileMode.Create).Close();
+				File.WriteAllText("../config.json","{\r\n\t\"ProcessListFileDir\": \"pcsMntBlackList.plf\",\r\n\t\"RuntimeLogFileDir\": \"runtimeLog.rlf\",\r\n\t\"DATABASE_NAME\": \"HUC_AppUsageLog\"\r\n}");
 			}
-				var configFile = File.ReadAllText("./config.json");
+				var configFile = File.ReadAllText("../config.json");
 				config = JsonSerializer.Deserialize<Config>(configFile);
 				// ！艹解决了…………为什么必须是同一个类下面的………………
 		//**----------------------------Sql cmd 监视进程初始化-----------------------------------------------------
@@ -218,8 +218,8 @@ namespace HUC_BackEnd_Remaster
 						pcsCon.endTime = DateTime.Now.ToLocalTime();
 						if (pcsCon.startTime == null || pcsCon.endTime == null) { throw new Exception("Time Log Fail or Lost!"); }
 						new MySqlCommand("UPDATE {pcsName} SET EndTime = '{pcsCon.endTime}', LastTime = {((DateTime)pcsCon.endTime - (DateTime)pcsCon.startTime).TotalMinutes} WHERE StartTime = '{pcsCon.startTime}'", sqlCon).ExecuteNonQueryAsync();
-						Console.WriteLine($"{pcsCon.endTime}: [INFO] AppEnd {pcsCon.pcsName}");
-						runtimeLogStreamWriter.WriteLine($"{pcsCon.endTime}: [INFO] AppEnd {pcsCon.pcsName}");
+						Console.WriteLine($"{((DateTime)pcsCon.endTime).ToString("HH:mm:ss")}: [INFO] AppEnd {pcsCon.pcsName}");
+						runtimeLogStreamWriter.WriteLine($"{((DateTime)pcsCon.endTime).ToString("HH:mm:ss")}: [INFO] AppEnd {pcsCon.pcsName}");
 					}
 					new Thread(thread_WaitForReboot).Start();
                     break;
@@ -444,8 +444,8 @@ namespace HUC_BackEnd_Remaster
 							this.endTime = DateTime.Now.ToLocalTime();
 						}
 						new MySqlCommand($"UPDATE {pcsName} SET EndTime = '{this.endTime}', LastTime = {((DateTime)this.endTime - (DateTime)this.startTime).TotalMinutes} WHERE StartTime = '{this.startTime}';", sqlCon).ExecuteNonQueryAsync();
-						Console.WriteLine($"{((DateTime)this.endTime).ToString("HH:mm:ss")}: [INFO] {pcsName} Reboot in less then 5min");
-						runtimeLogStreamWriter.WriteLine($"{((DateTime)this.endTime).ToString("yyyy-MM-dd HH:mm:ss")}: [INFO] {pcsName} Reboot in less then 5min");
+						Console.WriteLine($"{((DateTime)this.endTime).ToString("HH:mm:ss")}: [INFO] AppReboot {pcsName}");
+						runtimeLogStreamWriter.WriteLine($"{((DateTime)this.endTime).ToString("yyyy-MM-dd HH:mm:ss")}: [INFO] AppReboot {pcsName}");
 					}
 					else
 					{
